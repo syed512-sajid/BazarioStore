@@ -1,0 +1,84 @@
+﻿@model List<EcommerceStore.Models.CartItem>
+
+@{
+    ViewData["Title"] = "Checkout";
+    var total = ViewBag.Total ?? 0;
+}
+
+<div class="container mt-4">
+    <h1 class="mb-4">Checkout</h1>
+
+    <div class="row">
+        <!-- Billing Information -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Billing Information</h4>
+                </div>
+                <div class="card-body">
+                    <form id="checkoutForm">
+                        <div class="mb-3">
+                            <label class="form-label">Full Name *</label>
+                            <input type="text" name="customerName" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email *</label>
+                            <input type="email" name="email" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Phone *</label>
+                            <input type="tel" name="phone" class="form-control" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Delivery Address *</label>
+                            <textarea name="address" class="form-control" rows="3" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-success btn-lg w-100">Place Order</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order Summary -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Order Summary</h4>
+                </div>
+                <div class="card-body">
+                    @foreach (var item in Model)
+                    {
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>@item.ProductName x @item.Quantity</span>
+                            <span>Rs. @((item.Price * item.Quantity).ToString("N0"))</span>
+                        </div>
+                    }
+                    <hr>
+                    <div class="d-flex justify-content-between">
+                        <strong>Total:</strong>
+                        <strong class="text-primary">Rs. @total.ToString("N0")</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999;">
+    <div id="orderToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body">
+                ✅ Order placed successfully! Check your email.
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+<div id="orderLoader" class="loader-overlay d-none">
+    <div class="spinner-border text-light"></div>
+    <p class="text-white mt-3">Placing your order Please Wait</p>
+</div>
+
+<!-- Include separate JS file -->
+<script src="~/js/Checkout.js"></script>

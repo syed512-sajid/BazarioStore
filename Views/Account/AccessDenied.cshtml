@@ -1,0 +1,30 @@
+﻿@{
+    ViewData["Title"] = "Access Denied";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Access Denied</title>
+
+    <!-- Bootstrap & Font Awesome -->
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+
+    <!-- Custom site CSS -->
+    <link rel="stylesheet" href="~/css/site.css" />
+</head>
+<body class="access-denied">
+    <div class="error-container">
+        <i class="fas fa-ban error-icon"></i>
+        <h1>Access Denied</h1>
+        <p>You don't have permission to access this page.</p>
+        <a asp-controller="Home" asp-action="Index" class="btn-home">
+            <i class="fas fa-home me-2"></i>Go to Home
+        </a>
+    </div>
+</body>
+</html>

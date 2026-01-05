@@ -1,0 +1,160 @@
+﻿@model List<EcommerceStore.Models.Product>
+
+@{
+    ViewData["Title"] = "Home - Products";
+    var categories = new List<string> { "All", "Men", "Women", "Tech", "Accessories" };
+}
+
+<div class="container mt-4">
+
+    <!-- HEADER -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <h2 class="fw-bold">Welcome to BAZARIO</h2>
+            <p class="text-muted">Browse our amazing products</p>
+        </div>
+    </div>
+
+    <!-- SUCCESS MESSAGE -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- CATEGORY FILTER -->
+    <div class="mb-3">
+        @foreach (var cat in categories)
+        {
+            <a href="@Url.Action("Index", "Home", new { category = cat == "All" ? null : cat })"
+           class="btn btn-sm btn-outline-primary me-1 @(ViewBag.SelectedCategory == cat ? "active" : "")">
+                @cat
+            </a>
+        }
+    </div>
+
+    <!-- PRODUCTS GRID -->
+    <div class="row g-3">
+
+        @if (Model == null || !Model.Any())
+        {
+            <div class="col-12">
+                <div class="alert alert-info text-center">
+                    <h5>No products available</h5>
+                    <p>Please check back later.</p>
+                </div>
+            </div>
+        }
+        else
+        {
+            @foreach (var product in Model)
+            {
+                <div class="col-lg-3 col-md-4 col-sm-6 product-item"
+             data-name="@product.Name"
+             data-category="@product.Category">
+                    <div class="card h-100 shadow-sm">
+
+                        <!-- IMAGE + BADGE -->
+                        <div class="position-relative" style="overflow: hidden; background-color: #f8f9fa;">
+
+                            @* Discount Badge *@
+                            @if (product.ShowDiscount && product.DiscountPercent > 0)
+                            {
+                                <span class="badge bg-danger position-absolute top-0 start-0 m-2" style="z-index: 10; font-size: 0.85rem; padding: 0.4rem 0.6rem;">
+                                    @product.DiscountPercent% OFF
+                                </span>
+                            }
+
+                            @if (product.Images != null && product.Images.Any())
+                            {
+                                <div id="carousel-@product.Id" class="carousel slide" data-bs-ride="carousel">
+                                    <div class="carousel-inner">
+                                        @for (int i = 0; i < product.Images.Count; i++)
+                                        {
+                                            <div class="carousel-item @(i == 0 ? "active" : "")">
+                                                <div style="height: 200px; display: flex; align-items: center; justify-content: center;">
+                                                    <img src="@product.Images[i].ImageUrl"
+                                         class="img-fluid"
+                                         style="max-height: 100%; max-width: 100%; object-fit: contain;"
+                                         alt="@product.Name" />
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+
+                                    @* Carousel Controls (Optional - only show if multiple images) *@
+                                    @if (product.Images.Count > 1)
+                                    {
+                                        <button class="carousel-control-prev" type="button" data-bs-target="#carousel-@product.Id" data-bs-slide="prev">
+                                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                            <span class="visually-hidden">Previous</span>
+                                        </button>
+                                        <button class="carousel-control-next" type="button" data-bs-target="#carousel-@product.Id" data-bs-slide="next">
+                                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                            <span class="visually-hidden">Next</span>
+                                        </button>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div style="height: 200px; display: flex; align-items: center; justify-content: center; background-color: #f8f9fa;">
+                                    <img src="/images/no-image.jpg"
+                             class="img-fluid"
+                             style="max-height: 100%; max-width: 100%; object-fit: contain;"
+                             alt="No Image" />
+                                </div>
+                            }
+                        </div>
+
+                        <!-- CARD BODY -->
+                        <div class="card-body py-2">
+                            <h6 class="card-title mb-1 text-truncate" title="@product.Name">
+                                @product.Name
+                            </h6>
+
+                            <div class="fw-bold text-primary fs-6">
+                                Rs. @product.Price.ToString("N0")
+                            </div>
+
+                            @if (product.ShowDiscount && product.OriginalPrice.HasValue && product.OriginalPrice > product.Price)
+                            {
+                                <small class="text-muted text-decoration-line-through">
+                                    Rs. @product.OriginalPrice.Value.ToString("N0")
+                                </small>
+                            }
+
+                            <div>
+                                <small class="text-muted">
+                                    Stock: @product.Stock
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- FOOTER -->
+                        <div class="card-footer bg-white text-center py-2">
+                            <a href="@Url.Action("Details", "Home", new { id = product.Id })"
+                       class="btn btn-outline-primary btn-sm me-1">
+                                View
+                            </a>
+
+                            <form asp-action="AddToCart"
+                          asp-controller="Home"
+                          method="post"
+                          class="d-inline">
+                                <input type="hidden" name="productId" value="@product.Id" />
+                                <input type="hidden" name="quantity" value="1" />
+                                <button type="submit" class="btn btn-success btn-sm">
+                                    Add to Cart
+                                </button>
+                            </form>
+                        </div>
+
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>

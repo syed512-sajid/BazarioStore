@@ -1,0 +1,46 @@
+﻿@model EcommerceStore.Models.Order
+@{
+    ViewData["Title"] = "Track Order";
+}
+
+<div class="container mt-4">
+    <h1>Track Your Order</h1>
+
+    <form method="get" asp-action="TrackOrder">
+        <div class="mb-3">
+            <label class="form-label">Enter Tracking ID</label>
+            <input type="text" name="trackingId" class="form-control" placeholder="BAZ12345XYZ" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Track</button>
+    </form>
+
+    @if (Model != null)
+    {
+        <div class="card mt-3">
+            <div class="card-body">
+                <h5>
+                    Order Status:
+                    @if (Model.Status == "Delivered")
+                    {
+                        <span class="text-success">@Model.Status</span>
+                    }
+                    else if (Model.Status == "Cancelled")
+                    {
+                        <span class="text-danger">@Model.Status</span>
+                    }
+                    else
+                    {
+                        <span class="text-warning">@Model.Status</span>
+                    }
+                </h5>
+                <p>Order ID: @Model.Id</p>
+                <p>Customer: @Model.CustomerName</p>
+                <p>Total Amount: Rs. @Model.TotalAmount</p>
+            </div>
+        </div>
+    }
+    else if (Context.Request.Query.ContainsKey("trackingId"))
+    {
+        <div class="alert alert-danger mt-3">Tracking ID not found.</div>
+    }
+</div>

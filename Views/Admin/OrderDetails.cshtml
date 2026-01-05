@@ -1,0 +1,149 @@
+﻿@model EcommerceStore.Models.Order
+
+@{
+    ViewData["Title"] = "Order Details";
+}
+
+<div class="container mt-4">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Order #@Model.Id Details</h1>
+        <a asp-action="Orders" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Orders
+        </a>
+    </div>
+
+    <!-- Customer & Summary -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header"><h5>Customer Information</h5></div>
+                <div class="card-body">
+                    <p><strong>Name:</strong> @Model.CustomerName</p>
+                    <p><strong>Email:</strong> @Model.Email</p>
+                    <p><strong>Phone:</strong> @Model.Phone</p>
+                    <p><strong>Address:</strong> @Model.Address</p>
+                    <p>
+                        <strong>Order Date:</strong>
+                        @Model.OrderDate.ToString("dd MMM yyyy, hh:mm tt")
+                    </p>
+                    <p>
+                        <strong>Status:</strong>
+                        <span class="badge
+                            @(Model.Status == "Pending" ? "bg-warning text-dark" :
+                              Model.Status == "Processing" ? "bg-info" :
+                              Model.Status == "Delivered" ? "bg-success" :
+                              Model.Status == "Cancelled" ? "bg-danger" :
+                              "bg-secondary")">
+                            @Model.Status
+                        </span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header"><h5>Order Summary</h5></div>
+                <div class="card-body">
+                    <h3 class="text-primary">Rs. @Model.TotalAmount.ToString("N0")</h3>
+                    <p class="text-muted">Total Amount</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="card mb-3">
+        <div class="card-header"><h5>Order Actions</h5></div>
+        <div class="card-body">
+
+            @* Pending → Processing *@
+            @if (Model.Status == "Pending")
+            {
+                <button class="btn btn-warning me-2 order-action"
+                    data-action="processing"
+                    data-orderid="@Model.Id">
+                    <i class="bi bi-arrow-repeat"></i> Move to Processing
+                </button>
+            }
+
+            @* Processing → Delivered *@
+            @if (Model.Status == "Processing")
+            {
+                <button class="btn btn-success me-2 order-action"
+                    data-action="delivered"
+                    data-orderid="@Model.Id">
+                    <i class="bi bi-check-circle"></i> Mark as Delivered
+                </button>
+            }
+
+            @* Cancel / Reject (not allowed after delivery) *@
+            @if (Model.Status != "Delivered")
+            {
+                <button class="btn btn-outline-warning me-2 order-action"
+                    data-action="cancel"
+                    data-orderid="@Model.Id">
+                    <i class="bi bi-x-circle"></i> Cancel Order
+                </button>
+
+                <button class="btn btn-outline-danger me-2 order-action"
+                    data-action="notaccept"
+                    data-orderid="@Model.Id">
+                    <i class="bi bi-slash-circle"></i> Not Accept Order
+                </button>
+            }
+
+            @* Delete (Admin only – always available) *@
+            <form asp-action="DeleteOrder" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="orderId" value="@Model.Id" />
+                <button class="btn btn-danger">
+                    <i class="bi bi-trash"></i> Delete Order
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Order Items -->
+    <div class="card">
+        <div class="card-header"><h5>Order Items</h5></div>
+        <div class="card-body p-0">
+            <table class="table mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Product</th>
+                        <th>Qty</th>
+                        <th>Price</th>
+                        <th>Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.OrderItems)
+                    {
+                        <tr>
+                            <td>@item.Product?.Name</td>
+                            <td>@item.Quantity</td>
+                            <td>Rs. @item.Price.ToString("N0")</td>
+                            <td>Rs. @((item.Price * item.Quantity).ToString("N0"))</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" class="text-end fw-bold">Total</td>
+                        <td class="fw-bold text-primary">
+                            Rs. @Model.TotalAmount.ToString("N0")
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+@section Scripts {
+    <script src="~/js/Order.js"></script>
+}

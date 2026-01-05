@@ -1,0 +1,67 @@
+﻿@model EcommerceStore.Models.Order
+@{
+    ViewData["Title"] = "Track Order";
+}
+
+<div class="container mt-4">
+    <h1 class="mb-4">Track Your Order</h1>
+
+    <!-- Track Order Form -->
+    <form method="get" asp-controller="Checkout" asp-action="TrackOrder">
+        <div class="mb-3">
+            <label class="form-label">Enter Tracking ID</label>
+            <input type="text"
+                   name="trackingId"
+                   class="form-control"
+                   placeholder="BAZ12345XYZ"
+                   required
+                   pattern="[A-Za-z0-9]+"
+                   title="Enter a valid tracking ID">
+        </div>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-search-location me-1"></i>Track
+        </button>
+    </form>
+
+    <!-- Result Section -->
+    <div id="trackOrderResult" class="mt-3">
+        @if (Model != null)
+        {
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5>
+                        Order Status:
+                        @switch (Model.Status)
+                        {
+                            case "Delivered":
+                                <span class="badge bg-success">@Model.Status</span>
+                                ;
+                                break;
+                            case "Cancelled":
+                                <span class="badge bg-danger">@Model.Status</span>
+                                ;
+                                break;
+                            case "Pending":
+                                <span class="badge bg-warning text-dark">@Model.Status</span>
+                                ;
+                                break;
+                            default:
+                                <span class="badge bg-primary">@Model.Status</span>
+                                ;
+                                break;
+                        }
+                    </h5>
+                    <p><strong>Order ID:</strong> @Model.Id</p>
+                    <p><strong>Customer:</strong> @Model.CustomerName</p>
+                    <p><strong>Total Amount:</strong> Rs. @Model.TotalAmount</p>
+                </div>
+            </div>
+        }
+        else if (Context.Request.Query.ContainsKey("trackingId"))
+        {
+            <div class="alert alert-danger">
+                Tracking ID <strong>@Context.Request.Query["trackingId"]</strong> not found.
+            </div>
+        }
+    </div>
+</div>

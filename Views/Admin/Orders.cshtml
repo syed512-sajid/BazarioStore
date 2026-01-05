@@ -1,0 +1,177 @@
+﻿@model List<EcommerceStore.Models.Order>
+@{
+    ViewData["Title"] = "Orders Management";
+}
+
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="bi bi-receipt"></i> Orders Management</h1>
+        <a asp-action="Index" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Products
+        </a>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill"></i> @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (!Model.Any())
+    {
+        <div class="card shadow-sm">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-inbox" style="font-size: 4rem; color: #ccc;"></i>
+                <h4 class="mt-3">No orders yet</h4>
+                <p class="text-muted">Orders will appear here when customers place them.</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Order Statistics -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Orders</h5>
+                        <h2 class="mb-0">@Model.Count</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-white shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Pending</h5>
+                        <h2 class="mb-0">@Model.Count(o => o.Status == "Pending")</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Delivered</h5>
+                        <h2 class="mb-0">@Model.Count(o => o.Status == "Delivered")</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-danger text-white shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">Cancelled/Rejected</h5>
+                        <h2 class="mb-0">@Model.Count(o => o.Status == "Cancelled" || o.Status == "NotAccepted")</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Tabs -->
+        <ul class="nav nav-tabs filter-tabs mb-3">
+            <li class="nav-item">
+                <a class="nav-link active" href="#" data-filter="all">
+                    <i class="bi bi-list-ul"></i> All Orders (@Model.Count)
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-filter="Pending">
+                    <i class="bi bi-hourglass-split"></i> Pending (@Model.Count(o => o.Status == "Pending"))
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-filter="Delivered">
+                    <i class="bi bi-check-circle"></i> Delivered (@Model.Count(o => o.Status == "Delivered"))
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-filter="Cancelled">
+                    <i class="bi bi-x-circle"></i> Cancelled (@Model.Count(o => o.Status == "Cancelled"))
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#" data-filter="NotAccepted">
+                    <i class="bi bi-slash-circle"></i> Not Accepted (@Model.Count(o => o.Status == "NotAccepted"))
+                </a>
+            </li>
+        </ul>
+
+        <!-- Orders Table -->
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Order ID</th>
+                                <th>Customer</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Items</th>
+                                <th>Total Amount</th>
+                                <th>Status</th>
+                                <th>Order Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var order in Model)
+                            {
+                                var statusBadge = @order.Status switch
+                                {
+                                    "Pending" => "bg-warning text-dark",
+                                    "Delivered" => "bg-success",
+                                    "Cancelled" => "bg-danger",
+                                    "NotAccepted" => "bg-secondary",
+                                    _ => "bg-primary"
+                                };
+
+
+
+                                <tr class="order-item" data-status="@order.Status">
+                                    <td><strong>#@order.Id</strong></td>
+                                    <td>@order.CustomerName</td>
+                                    <td>@order.Email</td>
+                                    <td>@order.Phone</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info">@order.OrderItems.Count</span>
+                                    </td>
+                                    <td><strong class="text-success">Rs. @order.TotalAmount.ToString("N0")</strong></td>
+                                    <td>
+                                        <span class="badge @statusBadge">@order.Status</span>
+                                        @if (order.NotificationSent)
+                                        {
+                                            <i class="bi bi-envelope-check text-success ms-1" title="Email sent"></i>
+                                        }
+                                    </td>
+                                    <td>
+                                        <small>@order.OrderDate.ToString("dd MMM yyyy")</small><br>
+                                        <small class="text-muted">@order.OrderDate.ToString("hh:mm tt")</small>
+                                    </td>
+                                    <td>
+                                        <a asp-action="OrderDetails" asp-route-id="@order.Id"
+                                   class="btn btn-sm btn-primary">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/Order.js"></script>
+}

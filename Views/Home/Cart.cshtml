@@ -1,0 +1,100 @@
+﻿@model List<EcommerceStore.Models.CartItem>
+
+@{
+    ViewData["Title"] = "Shopping Cart";
+    var total = ViewBag.Total ?? 0;
+}
+
+<div class="container mt-4">
+    <h1 class="mb-4">Shopping Cart</h1>
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">@TempData["Error"]</div>
+    }
+
+    @if (!Model.Any())
+    {
+        <div class="alert alert-info">
+            <h4>Your cart is empty!</h4>
+            <a asp-action="Index" class="btn btn-primary mt-3">Start Shopping</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>Product</th>
+                        <th>Price</th>
+                        <th>Quantity</th>
+                        <th>Subtotal</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <!-- Product Title outside scroll -->
+                                    <strong class="mb-1">@item.ProductName</strong>
+
+                                    <!-- Scrollable images -->
+                                    <div class="d-flex overflow-auto" style="max-width:250px; gap: 5px;">
+                                        @if (item.ImageUrls != null && item.ImageUrls.Any())
+                                        {
+                                            @foreach (var imgUrl in item.ImageUrls)
+                                            {
+                                                <img src="@imgUrl" alt="@item.ProductName" style="width: 60px; height: 60px; object-fit: cover;">
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <img src="/images/no-image.jpg" alt="@item.ProductName" style="width: 60px; height: 60px; object-fit: cover;">
+                                        }
+                                    </div>
+                                </div>
+                            </td>
+                            <td>Rs. @item.Price.ToString("N0")</td>
+                            <td>
+                                <form asp-action="UpdateQuantity" method="post" class="d-inline">
+                                    <input type="hidden" name="productId" value="@item.ProductId" />
+                                    <input type="number" name="quantity" value="@item.Quantity" min="1"
+                                   class="form-control form-control-sm" style="width: 70px;"
+                                   data-stock="@item.Stock"
+                                   data-name="@item.ProductName"
+                                   onchange="this.form.submit()">
+                                </form>
+                            </td>
+                            <td><strong>Rs. @((item.Price * item.Quantity).ToString("N0"))</strong></td>
+                            <td>
+                                <a asp-action="RemoveFromCart" asp-route-productId="@item.ProductId" class="btn btn-danger btn-sm">Remove</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" class="text-end"><strong>Total:</strong></td>
+                        <td colspan="2"><h4 class="text-primary">Rs. @total.ToString("N0")</h4></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <div class="mt-4 d-flex justify-content-between">
+            <a asp-action="Index" class="btn btn-outline-secondary">Continue Shopping</a>
+            <button id="btnCheckout" class="btn btn-success"
+                data-checkout-url='@Url.Action("Index", "Checkout")'>
+                Proceed to Checkout
+            </button>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/Cart.js"></script>
+}
