@@ -1,171 +1,151 @@
 using EcommerceStore.Data;
 using EcommerceStore.Models;
 using EcommerceStore.Services;
-using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 
-var builder = WebApplication.CreateBuilder(args);
-
-// ===============================
-// DATABASE - SQLite
-// ===============================
-var dbPath = "/data";
-if (!Directory.Exists(dbPath)) Directory.CreateDirectory(dbPath);
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-                       ?? "Data Source=/data/Ecommerce.db";
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite(connectionString));
-
-// ===============================
-// IDENTITY
-// ===============================
-builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
+namespace EcommerceStore.Controllers
 {
-    options.Password.RequireDigit = true;
-    options.Password.RequiredLength = 6;
-    options.Password.RequireNonAlphanumeric = false;
-    options.Password.RequireUppercase = false;
-    options.Password.RequireLowercase = false;
-})
-.AddEntityFrameworkStores<ApplicationDbContext>()
-.AddDefaultTokenProviders();
-
-builder.Services.ConfigureApplicationCookie(options =>
-{
-    options.LoginPath = "/Account/Login";
-    options.AccessDeniedPath = "/Account/AccessDenied";
-});
-
-// ===============================
-// SESSION
-// ===============================
-builder.Services.AddDistributedMemoryCache();
-builder.Services.AddSession(options =>
-{
-    options.IdleTimeout = TimeSpan.FromMinutes(30);
-    options.Cookie.HttpOnly = true;
-    options.Cookie.IsEssential = true;
-});
-
-// ===============================
-// CONTROLLERS + VIEWS
-// ===============================
-builder.Services.AddControllersWithViews();
-
-// ===============================
-// EMAIL SETTINGS (Load from Environment Variables)
-// ===============================
-var emailSettings = new EmailSettings
-{
-    SmtpHost = Environment.GetEnvironmentVariable("SMTP_HOST") ?? "smtp.gmail.com",
-    SmtpPort = int.Parse(Environment.GetEnvironmentVariable("SMTP_PORT") ?? "587"),
-    SmtpUser = Environment.GetEnvironmentVariable("EMAIL_USER") ?? "",
-    SmtpPass = Environment.GetEnvironmentVariable("EMAIL_PASS") ?? "",
-    FromEmail = Environment.GetEnvironmentVariable("EMAIL_USER") ?? "info.bazario.store@gmail.com",
-    FromName = Environment.GetEnvironmentVariable("FROM_NAME") ?? "BAZARIO"
-};
-
-builder.Services.Configure<EmailSettings>(options =>
-{
-    options.SmtpHost = emailSettings.SmtpHost;
-    options.SmtpPort = emailSettings.SmtpPort;
-    options.SmtpUser = emailSettings.SmtpUser;
-    options.SmtpPass = emailSettings.SmtpPass;
-    options.FromEmail = emailSettings.FromEmail;
-    options.FromName = emailSettings.FromName;
-});
-
-// ===============================
-// EMAIL SERVICES - CRITICAL FIX
-// ===============================
-builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddSingleton<BackgroundEmailService>(); // Register as Singleton first
-builder.Services.AddHostedService(provider => provider.GetRequiredService<BackgroundEmailService>()); // Then as HostedService
-
-// ===============================
-// LOGGING - Enhanced for debugging
-// ===============================
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-builder.Logging.SetMinimumLevel(LogLevel.Information);
-
-// ===============================
-// BUILD APP
-// ===============================
-var app = builder.Build();
-
-// ===============================
-// LOG EMAIL CONFIGURATION
-// ===============================
-var logger = app.Services.GetRequiredService<ILogger<Program>>();
-logger.LogInformation("📧 Email Configuration:");
-logger.LogInformation("   SMTP Host: {Host}", emailSettings.SmtpHost);
-logger.LogInformation("   SMTP Port: {Port}", emailSettings.SmtpPort);
-logger.LogInformation("   SMTP User: {User}", string.IsNullOrEmpty(emailSettings.SmtpUser) ? "❌ NOT SET" : "✅ " + emailSettings.SmtpUser);
-logger.LogInformation("   SMTP Pass: {Pass}", string.IsNullOrEmpty(emailSettings.SmtpPass) ? "❌ NOT SET" : "✅ Configured");
-
-// ===============================
-// APPLY MIGRATIONS AND SEED ADMIN USER
-// ===============================
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    var db = services.GetRequiredService<ApplicationDbContext>();
-    await db.Database.MigrateAsync();
-
-    var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
-    var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
-
-    if (!await roleManager.RoleExistsAsync("Admin"))
-        await roleManager.CreateAsync(new IdentityRole("Admin"));
-
-    string adminEmail = "sajidabbas6024@gmail.com";
-    string adminPassword = "sajid@6024";
-    var adminUser = await userManager.FindByEmailAsync(adminEmail);
-
-    if (adminUser == null)
+    public class CheckoutController : Controller
     {
-        adminUser = new IdentityUser
+        private readonly ApplicationDbContext _context;
+        private readonly ILogger<CheckoutController> _logger;
+        private readonly IEmailService _emailService;
+
+        public CheckoutController(
+            ApplicationDbContext context,
+            ILogger<CheckoutController> logger,
+            IEmailService emailService)
         {
-            UserName = adminEmail,
-            Email = adminEmail,
-            EmailConfirmed = true
-        };
-        var result = await userManager.CreateAsync(adminUser, adminPassword);
-        if (result.Succeeded) await userManager.AddToRoleAsync(adminUser, "Admin");
+            _context = context;
+            _logger = logger;
+            _emailService = emailService;
+        }
+
+        public IActionResult Index()
+        {
+            var cartJson = HttpContext.Session.GetString("Cart");
+            var cart = string.IsNullOrEmpty(cartJson)
+                ? new List<CartItem>()
+                : JsonConvert.DeserializeObject<List<CartItem>>(cartJson) ?? new List<CartItem>();
+
+            if (!cart.Any())
+            {
+                TempData["Error"] = "Your cart is empty!";
+                return RedirectToAction("Cart", "Home");
+            }
+
+            ViewBag.Total = cart.Sum(c => c.Price * c.Quantity);
+            return View(cart);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> PlaceOrder(
+            string customerName,
+            string email,
+            string address,
+            string landmark,
+            string phone,
+            string paymentMethod)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(customerName) ||
+                    string.IsNullOrWhiteSpace(email) ||
+                    string.IsNullOrWhiteSpace(address) ||
+                    string.IsNullOrWhiteSpace(phone) ||
+                    string.IsNullOrWhiteSpace(paymentMethod))
+                {
+                    return Json(new { success = false, message = "All required fields must be filled." });
+                }
+
+                var cartJson = HttpContext.Session.GetString("Cart");
+                var cart = string.IsNullOrEmpty(cartJson)
+                    ? new List<CartItem>()
+                    : JsonConvert.DeserializeObject<List<CartItem>>(cartJson) ?? new List<CartItem>();
+
+                if (!cart.Any())
+                    return Json(new { success = false, message = "Your cart is empty!" });
+
+                var order = new Order
+                {
+                    CustomerName = customerName,
+                    Email = email,
+                    Address = address,
+                    Landmark = landmark ?? "",
+                    Phone = phone,
+                    PaymentMethod = paymentMethod,
+                    OrderDate = DateTime.Now,
+                    TotalAmount = cart.Sum(c => c.Price * c.Quantity),
+                    Status = "Pending",
+                    TrackingId = GenerateTrackingId(),
+                    OrderItems = cart.Select(c => new OrderItem
+                    {
+                        ProductId = c.ProductId,
+                        Quantity = c.Quantity,
+                        Price = c.Price,
+                        Size = c.Size ?? ""
+                    }).ToList()
+                };
+
+                _context.Orders.Add(order);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("✅ Order #{OrderId} saved to database", order.Id);
+
+                // ⚡ DIRECT EMAIL SEND (No background service)
+                try
+                {
+                    _logger.LogInformation("📧 Sending emails directly for Order #{OrderId}", order.Id);
+                    
+                    await _emailService.SendOrderConfirmationAsync(order, cart);
+                    _logger.LogInformation("✅ Customer email sent for Order #{OrderId}", order.Id);
+                    
+                    await _emailService.SendAdminNotificationAsync(order, cart);
+                    _logger.LogInformation("✅ Admin email sent for Order #{OrderId}", order.Id);
+                }
+                catch (Exception emailEx)
+                {
+                    _logger.LogError(emailEx, "❌ Email sending failed for Order #{OrderId}", order.Id);
+                    // Don't fail the order if email fails
+                }
+
+                HttpContext.Session.Remove("Cart");
+
+                return Json(new { success = true, orderId = order.Id, message = "Order placed successfully." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error placing order");
+                return Json(new { success = false, message = "An error occurred while placing your order." });
+            }
+        }
+
+        private string GenerateTrackingId()
+        {
+            var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            var random = new Random();
+            return $"BAZ{new string(Enumerable.Repeat(chars, 8).Select(s => s[random.Next(s.Length)]).ToArray())}";
+        }
+
+        public async Task<IActionResult> OrderConfirmation(int id)
+        {
+            var order = await _context.Orders
+                .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.Product)
+                .FirstOrDefaultAsync(o => o.Id == id);
+
+            return order == null ? NotFound() : View(order);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> TrackOrder(string trackingId)
+        {
+            if (string.IsNullOrEmpty(trackingId)) return View();
+            var order = await _context.Orders.FirstOrDefaultAsync(o => o.TrackingId == trackingId);
+            return View(order);
+        }
     }
 }
-
-// ===============================
-// MIDDLEWARE
-// ===============================
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Home/Error");
-    app.UseHsts();
-}
-
-app.UseHttpsRedirection();
-app.UseStaticFiles();
-app.UseRouting();
-app.UseAuthentication();
-app.UseAuthorization();
-app.UseSession();
-
-// ===============================
-// DEFAULT ROUTE
-// ===============================
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}"
-);
-
-// ===============================
-// RAILWAY PORT
-// ===============================
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-app.Urls.Add($"http://0.0.0.0:{port}");
-
-logger.LogInformation("🚀 Application starting on port {Port}", port);
-
-app.Run();
