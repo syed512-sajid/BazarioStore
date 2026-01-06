@@ -11,16 +11,13 @@ namespace EcommerceStore.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<CheckoutController> _logger;
-        private readonly IEmailService _emailService;
 
         public CheckoutController(
             ApplicationDbContext context,
-            ILogger<CheckoutController> logger,
-            IEmailService emailService)
+            ILogger<CheckoutController> logger)
         {
             _context = context;
             _logger = logger;
-            _emailService = emailService;
         }
 
         public IActionResult Index()
@@ -52,6 +49,8 @@ namespace EcommerceStore.Controllers
         {
             try
             {
+                _logger.LogInformation("📝 PlaceOrder called for customer: {Name}", customerName);
+
                 if (string.IsNullOrWhiteSpace(customerName) ||
                     string.IsNullOrWhiteSpace(email) ||
                     string.IsNullOrWhiteSpace(address) ||
@@ -95,21 +94,16 @@ namespace EcommerceStore.Controllers
 
                 _logger.LogInformation("✅ Order #{OrderId} saved to database", order.Id);
 
-                // ⚡ DIRECT EMAIL SEND (No background service)
+                // ⚡ QUEUE EMAIL FOR BACKGROUND PROCESSING
                 try
                 {
-                    _logger.LogInformation("📧 Sending emails directly for Order #{OrderId}", order.Id);
-                    
-                    await _emailService.SendOrderConfirmationAsync(order, cart);
-                    _logger.LogInformation("✅ Customer email sent for Order #{OrderId}", order.Id);
-                    
-                    await _emailService.SendAdminNotificationAsync(order, cart);
-                    _logger.LogInformation("✅ Admin email sent for Order #{OrderId}", order.Id);
+                    _logger.LogInformation("📧 Queuing email for Order #{OrderId}", order.Id);
+                    BackgroundEmailService.QueueEmail(order, cart);
+                    _logger.LogInformation("✅ Email queued successfully for Order #{OrderId}", order.Id);
                 }
                 catch (Exception emailEx)
                 {
-                    _logger.LogError(emailEx, "❌ Email sending failed for Order #{OrderId}", order.Id);
-                    // Don't fail the order if email fails
+                    _logger.LogError(emailEx, "❌ Failed to queue email for Order #{OrderId}", order.Id);
                 }
 
                 HttpContext.Session.Remove("Cart");
