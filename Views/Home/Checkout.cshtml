@@ -1,4 +1,4 @@
-﻿@model List<EcommerceStore.Models.CartItem>
+@model List<EcommerceStore.Models.CartItem>
 
 @{
     ViewData["Title"] = "Checkout";
@@ -16,7 +16,9 @@
                     <h4>Billing Information</h4>
                 </div>
                 <div class="card-body">
-                    <form id="checkoutForm">
+                    <form id="checkoutForm" method="post" asp-controller="Checkout" asp-action="PlaceOrder">
+                        @Html.AntiForgeryToken() <!-- Anti-forgery token added -->
+
                         <div class="mb-3">
                             <label class="form-label">Full Name *</label>
                             <input type="text" name="customerName" class="form-control" required>
@@ -33,6 +35,7 @@
                             <label class="form-label">Delivery Address *</label>
                             <textarea name="address" class="form-control" rows="3" required></textarea>
                         </div>
+
                         <button type="submit" class="btn btn-success btn-lg w-100">Place Order</button>
                     </form>
                 </div>
@@ -68,16 +71,17 @@
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999;">
     <div id="orderToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
         <div class="d-flex">
-            <div class="toast-body">
+            <div class="toast-body" id="toastMessage">
                 ✅ Order placed successfully! Check your email.
             </div>
             <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>
     </div>
 </div>
+
 <div id="orderLoader" class="loader-overlay d-none">
     <div class="spinner-border text-light"></div>
-    <p class="text-white mt-3">Placing your order Please Wait</p>
+    <p class="text-white mt-3">Placing your order, please wait...</p>
 </div>
 
 <!-- Include separate JS file -->
