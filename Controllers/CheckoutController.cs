@@ -40,6 +40,9 @@ namespace EcommerceStore.Controllers
             return View(cart);
         }
 
+        // ============================
+        // PLACE ORDER (MAIN FIX HERE)
+        // ============================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> PlaceOrder(
@@ -52,8 +55,9 @@ namespace EcommerceStore.Controllers
         {
             try
             {
-                _logger.LogInformation("📝 PlaceOrder called for customer: {Name}", customerName);
+                _logger.LogInformation("📝 PlaceOrder called for {Name}", customerName);
 
+                // Validation
                 if (string.IsNullOrWhiteSpace(customerName) ||
                     string.IsNullOrWhiteSpace(email) ||
                     string.IsNullOrWhiteSpace(address) ||
@@ -63,14 +67,18 @@ namespace EcommerceStore.Controllers
                     return Json(new { success = false, message = "All required fields must be filled." });
                 }
 
+                // Cart
                 var cartJson = HttpContext.Session.GetString("Cart");
                 var cart = string.IsNullOrEmpty(cartJson)
                     ? new List<CartItem>()
                     : JsonConvert.DeserializeObject<List<CartItem>>(cartJson) ?? new List<CartItem>();
 
                 if (!cart.Any())
+                {
                     return Json(new { success = false, message = "Your cart is empty!" });
+                }
 
+                // Order create
                 var order = new Order
                 {
                     CustomerName = customerName,
@@ -79,7 +87,7 @@ namespace EcommerceStore.Controllers
                     Landmark = landmark ?? "",
                     Phone = phone,
                     PaymentMethod = paymentMethod,
-                    OrderDate = DateTime.Now,
+                    OrderDate = DateTime.UtcNow,
                     TotalAmount = cart.Sum(c => c.Price * c.Quantity),
                     Status = "Pending",
                     TrackingId = GenerateTrackingId(),
@@ -95,47 +103,59 @@ namespace EcommerceStore.Controllers
                 _context.Orders.Add(order);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("✅ Order #{OrderId} saved to database", order.Id);
+                _logger.LogInformation("✅ Order #{OrderId} saved", order.Id);
 
-                // Send emails synchronously but don't wait for completion
-                try
+                // ============================
+                // EMAIL → BACKGROUND (NO BLOCK)
+                // ============================
+                _ = Task.Run(async () =>
                 {
-                    _logger.LogInformation("📧 Starting email sending process for Order #{OrderId}", order.Id);
-                    
-                    // Send customer email
-                    _logger.LogInformation("📧 Attempting to send customer email...");
-                    await _emailService.SendOrderConfirmationAsync(order, cart);
-                    _logger.LogInformation("✅ Customer email sent successfully");
-
-                    // Send admin email
-                    _logger.LogInformation("📧 Attempting to send admin email...");
-                    await _emailService.SendAdminNotificationAsync(order, cart);
-                    _logger.LogInformation("✅ Admin email sent successfully");
-                }
-                catch (Exception emailEx)
-                {
-                    _logger.LogError(emailEx, "❌ CRITICAL: Email sending failed for Order #{OrderId}. Error: {Message}", 
-                        order.Id, emailEx.Message);
-                    // Don't fail the order placement if email fails
-                }
+                    try
+                    {
+                        _logger.LogInformation("📧 Background email start for Order #{OrderId}", order.Id);
+                        await _emailService.SendOrderConfirmationAsync(order, cart);
+                        await _emailService.SendAdminNotificationAsync(order, cart);
+                        _logger.LogInformation("✅ Emails sent for Order #{OrderId}", order.Id);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "❌ Email failed for Order #{OrderId}", order.Id);
+                    }
+                });
 
                 // Clear cart
                 HttpContext.Session.Remove("Cart");
 
-                return Json(new { success = true, orderId = order.Id, message = "Order placed successfully." });
+                return Json(new
+                {
+                    success = true,
+                    orderId = order.Id,
+                    message = "Order placed successfully."
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Error placing order");
-                return Json(new { success = false, message = "An error occurred while placing your order." });
+                _logger.LogError(ex, "❌ PlaceOrder failed");
+                return Json(new
+                {
+                    success = false,
+                    message = "An error occurred while placing your order."
+                });
             }
         }
 
+        // ============================
+        // HELPERS
+        // ============================
         private string GenerateTrackingId()
         {
-            var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
             var random = new Random();
-            return $"BAZ{new string(Enumerable.Repeat(chars, 8).Select(s => s[random.Next(s.Length)]).ToArray())}";
+            return "BAZ" + new string(
+                Enumerable.Repeat(chars, 8)
+                .Select(s => s[random.Next(s.Length)])
+                .ToArray()
+            );
         }
 
         public async Task<IActionResult> OrderConfirmation(int id)
@@ -151,8 +171,12 @@ namespace EcommerceStore.Controllers
         [HttpGet]
         public async Task<IActionResult> TrackOrder(string trackingId)
         {
-            if (string.IsNullOrEmpty(trackingId)) return View();
-            var order = await _context.Orders.FirstOrDefaultAsync(o => o.TrackingId == trackingId);
+            if (string.IsNullOrWhiteSpace(trackingId))
+                return View();
+
+            var order = await _context.Orders
+                .FirstOrDefaultAsync(o => o.TrackingId == trackingId);
+
             return View(order);
         }
     }
