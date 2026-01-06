@@ -1,6 +1,15 @@
-﻿# Build folders
+# Build folders
 bin/
 obj/
+
+# User secrets
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Environment variables
+.env
 
 # SQLite temp files
 App_Data/*.db-shm
