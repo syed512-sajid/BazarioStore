@@ -1,21 +1,18 @@
-using Microsoft.EntityFrameworkCore;
 using EcommerceStore.Data;
+using EcommerceStore.Models;
 using Microsoft.AspNetCore.Identity;
-using MailKit.Security;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ===============================
-// DATABASE - Persistent SQLite
+// DATABASE - SQLite
 // ===============================
-var dbPath = "/data"; // Railway volume path
-if (!Directory.Exists(dbPath))
-{
-    Directory.CreateDirectory(dbPath); // Ensure the folder exists
-}
+var dbPath = "/data"; // Railway persistent folder
+if (!Directory.Exists(dbPath)) Directory.CreateDirectory(dbPath);
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-                      ?? "Data Source=/data/Ecommerce.db";
+                       ?? "Data Source=/data/Ecommerce.db";
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(connectionString));
@@ -34,7 +31,6 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
-// Login paths
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/Account/Login";
@@ -57,6 +53,14 @@ builder.Services.AddSession(options =>
 // ===============================
 builder.Services.AddControllersWithViews();
 
+// ===============================
+// EMAIL SETTINGS
+// ===============================
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+
+// ===============================
+// BUILD APP
+// ===============================
 var app = builder.Build();
 
 // ===============================
@@ -66,11 +70,9 @@ using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
 
-    // Apply pending migrations (creates tables if not exist)
     var db = services.GetRequiredService<ApplicationDbContext>();
     await db.Database.MigrateAsync();
 
-    // Seed admin user
     var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
     var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
 
@@ -89,10 +91,8 @@ using (var scope = app.Services.CreateScope())
             Email = adminEmail,
             EmailConfirmed = true
         };
-
         var result = await userManager.CreateAsync(adminUser, adminPassword);
-        if (result.Succeeded)
-            await userManager.AddToRoleAsync(adminUser, "Admin");
+        if (result.Succeeded) await userManager.AddToRoleAsync(adminUser, "Admin");
     }
 }
 
@@ -117,7 +117,8 @@ app.UseSession();
 // ===============================
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller=Home}/{action=Index}/{id?}"
+);
 
 // ===============================
 // RAILWAY PORT
@@ -125,4 +126,4 @@ app.MapControllerRoute(
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 app.Urls.Add($"http://0.0.0.0:{port}");
 
-app.Run(); // Only one app.Run() needed
+app.Run();
