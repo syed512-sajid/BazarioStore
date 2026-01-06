@@ -7,19 +7,23 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 // ===============================
-// LOGGING - Enhanced
+// LOGGING
 // ===============================
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.SetMinimumLevel(LogLevel.Information);
 
 // ===============================
-// DATABASE - SQLite
+// DATABASE - SQLite (Railway volume)
 // ===============================
 var dbPath = "/data";
-if (!Directory.Exists(dbPath)) Directory.CreateDirectory(dbPath);
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-                       ?? "Data Source=/data/Ecommerce.db";
+if (!Directory.Exists(dbPath))
+    Directory.CreateDirectory(dbPath);
+
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? "Data Source=/data/Ecommerce.db";
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(connectionString));
 
@@ -28,11 +32,11 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // ===============================
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
 {
-    options.Password.RequireDigit = true;
     options.Password.RequiredLength = 6;
-    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireDigit = true;
     options.Password.RequireUppercase = false;
     options.Password.RequireLowercase = false;
+    options.Password.RequireNonAlphanumeric = false;
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
@@ -55,97 +59,84 @@ builder.Services.AddSession(options =>
 });
 
 // ===============================
-// CONTROLLERS + VIEWS
+// MVC
 // ===============================
 builder.Services.AddControllersWithViews();
 
 // ===============================
-// EMAIL SETTINGS
-// ===============================
-var emailSettings = new EmailSettings
-{
-    SmtpHost = Environment.GetEnvironmentVariable("SMTP_HOST") ?? "smtp.gmail.com",
-    SmtpPort = int.Parse(Environment.GetEnvironmentVariable("SMTP_PORT") ?? "587"),
-    SmtpUser = Environment.GetEnvironmentVariable("EMAIL_USER") ?? "",
-    SmtpPass = Environment.GetEnvironmentVariable("EMAIL_PASS") ?? "",
-    FromEmail = Environment.GetEnvironmentVariable("EMAIL_USER") ?? "",
-    FromName = Environment.GetEnvironmentVariable("FROM_NAME") ?? "BAZARIO"
-};
-
-builder.Services.Configure<EmailSettings>(options =>
-{
-    options.SmtpHost = emailSettings.SmtpHost;
-    options.SmtpPort = emailSettings.SmtpPort;
-    options.SmtpUser = emailSettings.SmtpUser;
-    options.SmtpPass = emailSettings.SmtpPass;
-    options.FromEmail = emailSettings.FromEmail;
-    options.FromName = emailSettings.FromName;
-});
-
-// ===============================
-// EMAIL SERVICE - DIRECT (No Background Service)
+// EMAIL SERVICE
 // ===============================
 builder.Services.AddScoped<IEmailService, EmailService>();
 
 // ===============================
-// BUILD APP
+// BUILD
 // ===============================
 var app = builder.Build();
 
 // ===============================
-// LOG EMAIL CONFIGURATION
+// STARTUP LOGS
 // ===============================
-var logger = app.Services.GetRequiredService<ILogger<Program>>();
+var logger = app.Services.GetRequiredService<ILoggerFactory>()
+    .CreateLogger("Program");
+
 logger.LogInformation("===========================================");
 logger.LogInformation("📧 EMAIL CONFIGURATION CHECK");
 logger.LogInformation("===========================================");
-logger.LogInformation("SMTP Host: {Host}", emailSettings.SmtpHost);
-logger.LogInformation("SMTP Port: {Port}", emailSettings.SmtpPort);
-logger.LogInformation("SMTP User: {User}", string.IsNullOrEmpty(emailSettings.SmtpUser) ? "❌ NOT SET" : $"✅ {emailSettings.SmtpUser}");
-logger.LogInformation("SMTP Pass: {Pass}", string.IsNullOrEmpty(emailSettings.SmtpPass) ? "❌ NOT SET" : $"✅ SET (length: {emailSettings.SmtpPass.Length})");
-logger.LogInformation("From Email: {From}", emailSettings.FromEmail);
-logger.LogInformation("From Name: {Name}", emailSettings.FromName);
+logger.LogInformation("SMTP Host: {Host}", Environment.GetEnvironmentVariable("SMTP_HOST"));
+logger.LogInformation("SMTP Port: {Port}", Environment.GetEnvironmentVariable("SMTP_PORT"));
+logger.LogInformation("SMTP User: {User}",
+    string.IsNullOrEmpty(Environment.GetEnvironmentVariable("EMAIL_USER"))
+        ? "❌ NOT SET"
+        : "✅ SET");
+logger.LogInformation("From Name: {Name}", Environment.GetEnvironmentVariable("FROM_NAME"));
 logger.LogInformation("===========================================");
 
 // ===============================
-// APPLY MIGRATIONS AND SEED ADMIN USER
+// MIGRATION + ADMIN SEED (SAFE)
 // ===============================
 using (var scope = app.Services.CreateScope())
 {
-    var services = scope.ServiceProvider;
-    var db = services.GetRequiredService<ApplicationDbContext>();
-    
-    logger.LogInformation("🔄 Applying database migrations...");
-    await db.Database.MigrateAsync();
-    logger.LogInformation("✅ Database ready");
-
-    var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
-    var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
-
-    if (!await roleManager.RoleExistsAsync("Admin"))
+    try
     {
-        await roleManager.CreateAsync(new IdentityRole("Admin"));
-        logger.LogInformation("✅ Admin role created");
-    }
+        logger.LogInformation("🔄 Applying database migrations...");
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        await db.Database.MigrateAsync();
+        logger.LogInformation("✅ Database ready");
 
-    string adminEmail = "sajidabbas6024@gmail.com";
-    string adminPassword = "sajid@6024";
-    var adminUser = await userManager.FindByEmailAsync(adminEmail);
+        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
 
-    if (adminUser == null)
-    {
-        adminUser = new IdentityUser
+        if (!await roleManager.RoleExistsAsync("Admin"))
         {
-            UserName = adminEmail,
-            Email = adminEmail,
-            EmailConfirmed = true
-        };
-        var result = await userManager.CreateAsync(adminUser, adminPassword);
-        if (result.Succeeded)
-        {
-            await userManager.AddToRoleAsync(adminUser, "Admin");
-            logger.LogInformation("✅ Admin user created: {Email}", adminEmail);
+            await roleManager.CreateAsync(new IdentityRole("Admin"));
+            logger.LogInformation("✅ Admin role created");
         }
+
+        const string adminEmail = "sajidabbas6024@gmail.com";
+        const string adminPassword = "sajid@6024";
+
+        var admin = await userManager.FindByEmailAsync(adminEmail);
+        if (admin == null)
+        {
+            admin = new IdentityUser
+            {
+                UserName = adminEmail,
+                Email = adminEmail,
+                EmailConfirmed = true
+            };
+
+            var result = await userManager.CreateAsync(admin, adminPassword);
+            if (result.Succeeded)
+            {
+                await userManager.AddToRoleAsync(admin, "Admin");
+                logger.LogInformation("✅ Admin user created");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogCritical(ex, "❌ Startup failed");
+        throw;
     }
 }
 
@@ -158,28 +149,23 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+// ❌ DO NOT USE HTTPS REDIRECT ON RAILWAY
+// app.UseHttpsRedirection();
+
 app.UseStaticFiles();
 app.UseRouting();
+app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseSession();
 
 // ===============================
-// DEFAULT ROUTE
+// ROUTES
 // ===============================
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}"
-);
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 
-// ===============================
-// RAILWAY PORT
-// ===============================
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-app.Urls.Add($"http://0.0.0.0:{port}");
-
-logger.LogInformation("🚀 Application starting on port {Port}", port);
+logger.LogInformation("🚀 Application started");
 logger.LogInformation("🌐 Environment: {Env}", app.Environment.EnvironmentName);
 
 app.Run();
