@@ -1,4 +1,4 @@
-﻿using EcommerceStore.Models;
+using EcommerceStore.Models;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
@@ -35,20 +35,25 @@ namespace EcommerceStore.Services
             {
                 _emailSettings.SmtpPass = envPass;
             }
+
+            _logger.LogInformation("🔧 EmailService initialized");
+            _logger.LogInformation("   SMTP User: {User}", _emailSettings.SmtpUser ?? "NOT SET");
+            _logger.LogInformation("   SMTP Pass: {Pass}", string.IsNullOrEmpty(_emailSettings.SmtpPass) ? "NOT SET" : "SET");
         }
 
         public async Task SendOrderConfirmationAsync(Order order, List<CartItem> cart)
         {
             try
             {
+                _logger.LogInformation("📧 [CUSTOMER EMAIL] Starting for Order #{OrderId}", order.Id);
+
                 if (string.IsNullOrEmpty(_emailSettings.SmtpUser) || string.IsNullOrEmpty(_emailSettings.SmtpPass))
                 {
                     _logger.LogWarning("⚠️ Email credentials not configured. Skipping customer email.");
                     return;
                 }
 
-                _logger.LogInformation("📧 Preparing customer email for Order #{OrderId}", order.Id);
-
+                _logger.LogInformation("📧 Building email message...");
                 var message = new MimeMessage();
                 message.From.Add(new MailboxAddress(_emailSettings.FromName, _emailSettings.FromEmail));
                 message.To.Add(new MailboxAddress(order.CustomerName, order.Email));
@@ -57,12 +62,16 @@ namespace EcommerceStore.Services
                 string body = BuildCustomerEmailBody(order, cart);
                 message.Body = new TextPart("html") { Text = body };
 
+                _logger.LogInformation("📧 Message built. Sending to {Email}...", order.Email);
                 await SendEmailAsync(message);
-                _logger.LogInformation("✅ Customer email sent to {Email}", order.Email);
+                _logger.LogInformation("✅ [CUSTOMER EMAIL] Sent successfully to {Email}", order.Email);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Failed to send customer email for Order #{OrderId}", order.Id);
+                _logger.LogError(ex, "❌ [CUSTOMER EMAIL] Failed for Order #{OrderId}. Error: {Message}", 
+                    order.Id, ex.Message);
+                _logger.LogError("Stack trace: {StackTrace}", ex.StackTrace);
+                throw; // Re-throw to let caller handle
             }
         }
 
@@ -70,14 +79,15 @@ namespace EcommerceStore.Services
         {
             try
             {
+                _logger.LogInformation("📧 [ADMIN EMAIL] Starting for Order #{OrderId}", order.Id);
+
                 if (string.IsNullOrEmpty(_emailSettings.SmtpUser) || string.IsNullOrEmpty(_emailSettings.SmtpPass))
                 {
                     _logger.LogWarning("⚠️ Email credentials not configured. Skipping admin email.");
                     return;
                 }
 
-                _logger.LogInformation("📧 Preparing admin email for Order #{OrderId}", order.Id);
-
+                _logger.LogInformation("📧 Building admin email message...");
                 var message = new MimeMessage();
                 message.From.Add(new MailboxAddress(_emailSettings.FromName, _emailSettings.FromEmail));
                 message.To.Add(new MailboxAddress("Admin", "sajidabbas6024@gmail.com"));
@@ -86,12 +96,16 @@ namespace EcommerceStore.Services
                 string body = BuildAdminEmailBody(order, cart);
                 message.Body = new TextPart("html") { Text = body };
 
+                _logger.LogInformation("📧 Admin message built. Sending...");
                 await SendEmailAsync(message);
-                _logger.LogInformation("✅ Admin email sent successfully");
+                _logger.LogInformation("✅ [ADMIN EMAIL] Sent successfully");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Failed to send admin email for Order #{OrderId}", order.Id);
+                _logger.LogError(ex, "❌ [ADMIN EMAIL] Failed for Order #{OrderId}. Error: {Message}", 
+                    order.Id, ex.Message);
+                _logger.LogError("Stack trace: {StackTrace}", ex.StackTrace);
+                throw; // Re-throw to let caller handle
             }
         }
 
@@ -99,26 +113,41 @@ namespace EcommerceStore.Services
         {
             using var client = new SmtpClient();
 
-            client.ServerCertificateValidationCallback = (s, c, h, e) => true;
-            client.CheckCertificateRevocation = false;
-            client.Timeout = 30000; // 30 second timeout
+            try
+            {
+                _logger.LogInformation("🔌 Configuring SMTP client...");
+                client.ServerCertificateValidationCallback = (s, c, h, e) => true;
+                client.CheckCertificateRevocation = false;
+                client.Timeout = 60000; // 60 second timeout
 
-            _logger.LogInformation("🔌 Connecting to SMTP {Host}:{Port}", _emailSettings.SmtpHost, _emailSettings.SmtpPort);
+                _logger.LogInformation("🔌 Connecting to {Host}:{Port}...", _emailSettings.SmtpHost, _emailSettings.SmtpPort);
 
-            var secureSocketOptions = _emailSettings.SmtpPort == 587
-                ? SecureSocketOptions.StartTls
-                : SecureSocketOptions.SslOnConnect;
+                var secureSocketOptions = _emailSettings.SmtpPort == 587
+                    ? SecureSocketOptions.StartTls
+                    : SecureSocketOptions.SslOnConnect;
 
-            await client.ConnectAsync(_emailSettings.SmtpHost, _emailSettings.SmtpPort, secureSocketOptions);
-            _logger.LogInformation("🔐 Authenticating as {User}", _emailSettings.SmtpUser);
+                await client.ConnectAsync(_emailSettings.SmtpHost, _emailSettings.SmtpPort, secureSocketOptions);
+                _logger.LogInformation("✅ Connected to SMTP server");
 
-            await client.AuthenticateAsync(_emailSettings.SmtpUser, _emailSettings.SmtpPass);
-            _logger.LogInformation("📤 Sending email...");
+                _logger.LogInformation("🔐 Authenticating as {User}...", _emailSettings.SmtpUser);
+                await client.AuthenticateAsync(_emailSettings.SmtpUser, _emailSettings.SmtpPass);
+                _logger.LogInformation("✅ Authentication successful");
 
-            await client.SendAsync(message);
-            await client.DisconnectAsync(true);
+                _logger.LogInformation("📤 Sending email...");
+                await client.SendAsync(message);
+                _logger.LogInformation("✅ Email sent");
 
-            _logger.LogInformation("✅ Email sent successfully");
+                await client.DisconnectAsync(true);
+                _logger.LogInformation("🔌 Disconnected from SMTP server");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ SMTP Error: {Message}", ex.Message);
+                _logger.LogError("   SMTP Host: {Host}", _emailSettings.SmtpHost);
+                _logger.LogError("   SMTP Port: {Port}", _emailSettings.SmtpPort);
+                _logger.LogError("   SMTP User: {User}", _emailSettings.SmtpUser);
+                throw;
+            }
         }
 
         private string BuildCustomerEmailBody(Order order, List<CartItem> cart)
