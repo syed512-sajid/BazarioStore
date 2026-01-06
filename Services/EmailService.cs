@@ -81,7 +81,8 @@ namespace EcommerceStore.Services
             {
                 client.ServerCertificateValidationCallback = (s, c, h, e) => true;
 
-                await client.ConnectAsync(_smtpHost, _smtpPort, SecureSocketOptions.StartTls);
+                await client.ConnectAsync(_smtpHost, _smtpPort, SecureSocketOptions.Auto
+);
                 await client.AuthenticateAsync(_smtpUser, _smtpPass);
                 await client.SendAsync(message);
                 await client.DisconnectAsync(true);
