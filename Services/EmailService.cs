@@ -74,31 +74,30 @@ namespace EcommerceStore.Services
             await SendAsync(message);
         }
 
-        private async Task SendAsync(MimeMessage message)
-        {
-            using var client = new SmtpClient();
-            try
-            {
-                client.ServerCertificateValidationCallback = (s, c, h, e) => true;
+       private async Task SendAsync(MimeMessage message)
+{
+    using var client = new SmtpClient();
+    try
+    {
+        client.ServerCertificateValidationCallback = (s, c, h, e) => true;
 
-             await client.ConnectAsync(
-    "smtp.gmail.com",
-    465,
-    SecureSocketOptions.SslOnConnect
-);
+        await client.ConnectAsync(
+            _smtpHost,
+            _smtpPort,
+            SecureSocketOptions.StartTls
+        );
 
-);
-                await client.AuthenticateAsync(_smtpUser, _smtpPass);
-                await client.SendAsync(message);
-                await client.DisconnectAsync(true);
+        await client.AuthenticateAsync(_smtpUser, _smtpPass);
+        await client.SendAsync(message);
+        await client.DisconnectAsync(true);
 
-                _logger.LogInformation("✅ EMAIL SENT");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "❌ EMAIL FAILED");
-            }
-        }
+        _logger.LogInformation("✅ EMAIL SENT");
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "❌ EMAIL FAILED");
+    }
+}
 
         private bool IsConfigured()
         {
