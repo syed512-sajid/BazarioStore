@@ -1,5 +1,6 @@
 using EcommerceStore.Data;
 using EcommerceStore.Models;
+using EcommerceStore.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,12 +9,10 @@ var builder = WebApplication.CreateBuilder(args);
 // ===============================
 // DATABASE - SQLite
 // ===============================
-var dbPath = "/data"; // Railway persistent folder
+var dbPath = "/data";
 if (!Directory.Exists(dbPath)) Directory.CreateDirectory(dbPath);
-
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
                        ?? "Data Source=/data/Ecommerce.db";
-
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(connectionString));
 
@@ -59,6 +58,12 @@ builder.Services.AddControllersWithViews();
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
 // ===============================
+// EMAIL SERVICES (NEW)
+// ===============================
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddHostedService<BackgroundEmailService>();
+
+// ===============================
 // BUILD APP
 // ===============================
 var app = builder.Build();
@@ -69,7 +74,6 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
-
     var db = services.GetRequiredService<ApplicationDbContext>();
     await db.Database.MigrateAsync();
 
@@ -81,8 +85,8 @@ using (var scope = app.Services.CreateScope())
 
     string adminEmail = "sajidabbas6024@gmail.com";
     string adminPassword = "sajid@6024";
-
     var adminUser = await userManager.FindByEmailAsync(adminEmail);
+
     if (adminUser == null)
     {
         adminUser = new IdentityUser
