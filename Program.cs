@@ -109,6 +109,12 @@ var builder = WebApplication.CreateBuilder(args);
 // ===============================
 // DATABASE - Persistent SQLite
 // ===============================
+var dbPath = "/data"; // Railway volume path
+if (!Directory.Exists(dbPath))
+{
+    Directory.CreateDirectory(dbPath); // Ensure the folder exists
+}
+
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
                       ?? "Data Source=/data/Ecommerce.db";
 
@@ -213,5 +219,7 @@ app.MapControllerRoute(
 // ===============================
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 app.Urls.Add($"http://0.0.0.0:{port}");
+
+app.Run();
 
 app.Run();
