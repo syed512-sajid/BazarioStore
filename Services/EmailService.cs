@@ -25,8 +25,8 @@ namespace EcommerceStore.Services
         {
             _logger = logger;
 
-            _smtpUser = Environment.GetEnvironmentVariable("EMAIL_USER");
-            _smtpPass = Environment.GetEnvironmentVariable("EMAIL_PASS");
+            _smtpUser = Environment.GetEnvironmentVariable("EMAIL_USER") ?? "";
+            _smtpPass = Environment.GetEnvironmentVariable("EMAIL_PASS") ?? "";
             _smtpHost = Environment.GetEnvironmentVariable("SMTP_HOST") ?? "smtp.gmail.com";
             _fromName = Environment.GetEnvironmentVariable("FROM_NAME") ?? "BAZARIO";
 
@@ -68,7 +68,7 @@ namespace EcommerceStore.Services
 
             var message = new MimeMessage();
             message.From.Add(new MailboxAddress(_fromName, _smtpUser));
-            message.To.Add(new MailboxAddress("Admin", "sajidabbas6024@gmail.com"));
+            message.To.Add(MailboxAddress.Parse("sajidabbas6024@gmail.com"));
             message.Subject = $"🔔 New Order #{order.Id}";
 
             message.Body = new TextPart("html")
@@ -80,13 +80,18 @@ namespace EcommerceStore.Services
         }
 
         // ============================
-        // SMTP SEND (SAFE)
+        // SMTP SEND (SAFE + TIMEOUT)
         // ============================
         private async Task SendAsync(MimeMessage message)
         {
             try
             {
-                using var client = new SmtpClient();
+                using var client = new SmtpClient
+                {
+                    Timeout = 100000 // ⬅️ VERY IMPORTANT (100 sec)
+                };
+
+                _logger.LogInformation("📨 Connecting SMTP...");
 
                 await client.ConnectAsync(
                     _smtpHost,
@@ -102,7 +107,7 @@ namespace EcommerceStore.Services
             }
             catch (Exception ex)
             {
-                // IMPORTANT: never crash app
+                // ❌ NEVER crash the app
                 _logger.LogError(ex, "❌ Email sending failed");
             }
         }
