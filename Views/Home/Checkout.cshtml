@@ -1,5 +1,4 @@
 @model List<EcommerceStore.Models.CartItem>
-
 @{
     ViewData["Title"] = "Checkout";
     var total = ViewBag.Total ?? 0;
@@ -11,32 +10,53 @@
     <div class="row">
         <!-- Billing Information -->
         <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">
-                    <h4>Billing Information</h4>
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="fas fa-user-edit me-2"></i>Billing Information</h4>
                 </div>
                 <div class="card-body">
-                    <form id="checkoutForm" method="post" asp-controller="Checkout" asp-action="PlaceOrder">
-                        @Html.AntiForgeryToken() <!-- Anti-forgery token added -->
+                    <form id="checkoutForm" method="post" action="/Checkout/PlaceOrder">
+                        @Html.AntiForgeryToken()
 
                         <div class="mb-3">
                             <label class="form-label">Full Name *</label>
-                            <input type="text" name="customerName" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Email *</label>
-                            <input type="email" name="email" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Phone *</label>
-                            <input type="tel" name="phone" class="form-control" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Delivery Address *</label>
-                            <textarea name="address" class="form-control" rows="3" required></textarea>
+                            <input type="text" name="customerName" class="form-control" placeholder="Enter your full name" required>
                         </div>
 
-                        <button type="submit" class="btn btn-success btn-lg w-100">Place Order</button>
+                        <div class="mb-3">
+                            <label class="form-label">Email *</label>
+                            <input type="email" name="email" class="form-control" placeholder="your@email.com" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Phone *</label>
+                            <input type="tel" name="phone" class="form-control" placeholder="03XX-XXXXXXX" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Delivery Address *</label>
+                            <textarea name="address" class="form-control" rows="3" placeholder="Enter complete delivery address" required></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Landmark (Optional)</label>
+                            <input type="text" name="landmark" class="form-control" placeholder="Nearby landmark for easier delivery">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Payment Method *</label>
+                            <select name="paymentMethod" class="form-select" required id="paymentMethod">
+                                <option value="">Select Payment Method</option>
+                                <option value="COD" selected>Cash on Delivery</option>
+                                <option value="JazzCash">JazzCash (Coming Soon)</option>
+                                <option value="EasyPaisa">EasyPaisa (Coming Soon)</option>
+                                <option value="Bank">Bank Transfer (Coming Soon)</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-success btn-lg w-100">
+                            <i class="fas fa-check-circle me-2"></i>Place Order
+                        </button>
                     </form>
                 </div>
             </div>
@@ -44,45 +64,76 @@
 
         <!-- Order Summary -->
         <div class="col-md-4">
-            <div class="card">
-                <div class="card-header">
-                    <h4>Order Summary</h4>
+            <div class="card shadow">
+                <div class="card-header bg-secondary text-white">
+                    <h4 class="mb-0"><i class="fas fa-shopping-cart me-2"></i>Order Summary</h4>
                 </div>
                 <div class="card-body">
-                    @foreach (var item in Model)
+                    @if (Model != null && Model.Any())
                     {
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>@item.ProductName x @item.Quantity</span>
-                            <span>Rs. @((item.Price * item.Quantity).ToString("N0"))</span>
+                        @foreach (var item in Model)
+                        {
+                            <div class="d-flex justify-content-between mb-3 pb-2 border-bottom">
+                                <div>
+                                    <strong>@item.ProductName</strong>
+                                    <div class="text-muted small">Qty: @item.Quantity</div>
+                                    @if (!string.IsNullOrEmpty(item.Size))
+                                    {
+                                        <div class="text-muted small">Size: @item.Size</div>
+                                    }
+                                </div>
+                                <div class="text-end">
+                                    <strong>Rs. @((item.Price * item.Quantity).ToString("N0"))</strong>
+                                </div>
+                            </div>
+                        }
+                        <hr>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Total:</h5>
+                            <h4 class="text-success mb-0">Rs. @total.ToString("N0")</h4>
                         </div>
                     }
-                    <hr>
-                    <div class="d-flex justify-content-between">
-                        <strong>Total:</strong>
-                        <strong class="text-primary">Rs. @total.ToString("N0")</strong>
-                    </div>
+                    else
+                    {
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>No items in cart
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="card shadow mt-3">
+                <div class="card-body">
+                    <h6 class="mb-3"><i class="fas fa-info-circle me-2"></i>Payment Information</h6>
+                    <p class="text-muted small mb-0">
+                        <i class="fas fa-truck me-2"></i>Cash on Delivery available<br>
+                        <i class="fas fa-shield-alt me-2"></i>Secure checkout<br>
+                        <i class="fas fa-undo me-2"></i>Easy returns
+                    </p>
                 </div>
             </div>
         </div>
     </div>
+</div>
+
+<!-- Loader Overlay -->
+<div id="orderLoader" class="loader-overlay d-none">
+    <div class="spinner-border text-primary"></div>
+    <p class="text-dark mt-2">Placing your order, please wait...</p>
 </div>
 
 <!-- Toast Notification -->
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999;">
     <div id="orderToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
         <div class="d-flex">
-            <div class="toast-body" id="toastMessage">
-                ✅ Order placed successfully! Check your email.
+            <div class="toast-body">
+                <i class="fas fa-check-circle me-2"></i><span id="toastMessage">Order placed successfully!</span>
             </div>
             <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>
     </div>
 </div>
 
-<div id="orderLoader" class="loader-overlay d-none">
-    <div class="spinner-border text-light"></div>
-    <p class="text-white mt-3">Placing your order, please wait...</p>
-</div>
-
-<!-- Include separate JS file -->
-<script src="~/js/Checkout.js"></script>
+@section Scripts {
+    <script src="~/js/Checkout.js"></script>
+}
