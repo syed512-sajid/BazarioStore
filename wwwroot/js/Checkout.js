@@ -136,7 +136,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 headers: { "RequestVerificationToken": token }
             });
 
-            const data = await response.json();
+            let data = {};
+try {
+  data = await response.json();
+} catch {
+  throw new Error("Invalid server response");
+}
+
 
             if (loader) loader.classList.add("d-none");
             if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; }
