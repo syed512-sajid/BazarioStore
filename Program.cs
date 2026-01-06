@@ -83,10 +83,9 @@ builder.Services.Configure<EmailSettings>(options =>
 });
 
 // ===============================
-// EMAIL SERVICE + BACKGROUND SERVICE
+// EMAIL SERVICE - DIRECT (No Background Service)
 // ===============================
 builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddHostedService<BackgroundEmailService>();
 
 // ===============================
 // BUILD APP
