@@ -1,4 +1,4 @@
-﻿@model List<EcommerceStore.Models.CartItem>
+@model List<EcommerceStore.Models.CartItem>
 @{
     ViewData["Title"] = "Checkout";
     var total = ViewBag.Total ?? 0;
@@ -15,7 +15,7 @@
                     <h4 class="mb-0"><i class="fas fa-user-edit me-2"></i>Billing Information</h4>
                 </div>
                 <div class="card-body">
-                    <form id="checkoutForm" method="post">
+                    <form id="checkoutForm" method="post" action="/Checkout/PlaceOrder">
                         @Html.AntiForgeryToken()
 
                         <div class="mb-3">
@@ -116,6 +116,12 @@
     </div>
 </div>
 
+<!-- Loader Overlay -->
+<div id="orderLoader" class="loader-overlay d-none">
+    <div class="spinner-border text-primary"></div>
+    <p class="text-dark mt-2">Placing your order, please wait...</p>
+</div>
+
 <!-- Toast Notification -->
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999;">
     <div id="orderToast" class="toast align-items-center text-white bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
@@ -130,4 +136,4 @@
 
 @section Scripts {
     <script src="~/js/Checkout.js"></script>
-} 
+}
