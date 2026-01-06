@@ -267,8 +267,11 @@ namespace EcommerceStore.Controllers
         {
             try
             {
+                var emailUser = Environment.GetEnvironmentVariable("EMAIL_USER");
+                var emailPass = Environment.GetEnvironmentVariable("EMAIL_PASS");
+
                 var message = new MimeMessage();
-                message.From.Add(new MailboxAddress("BAZARIO Store", "INFO.BAZARIO.STORE@gmail.com"));
+                message.From.Add(new MailboxAddress("BAZARIO Store", emailUser));
                 message.To.Add(new MailboxAddress(order.CustomerName, order.Email));
                 message.Subject = "✅ Order Confirmed - BAZARIO";
 
@@ -352,25 +355,21 @@ namespace EcommerceStore.Controllers
 
 </div>";
 
+             
                 message.Body = new TextPart("html") { Text = body };
 
-                using (var client = new SmtpClient())
-                {
-                    client.ServerCertificateValidationCallback = (s, c, h, e) => true;
-
-                    client.Connect("smtp.gmail.com", 465, SecureSocketOptions.SslOnConnect);
-                    client.Authenticate("INFO.BAZARIO.STORE@gmail.com", "pyhs yayn vecz yakf");
-
-                    client.Send(message);
-                    client.Disconnect(true);
-                }
+                using var client = new MailKit.Net.Smtp.SmtpClient();
+                client.ServerCertificateValidationCallback = (s, c, h, e) => true;
+                client.Connect("smtp.gmail.com", 465, MailKit.Security.SecureSocketOptions.SslOnConnect);
+                client.Authenticate(emailUser, emailPass);
+                client.Send(message);
+                client.Disconnect(true);
 
                 _logger.LogInformation("Customer email sent successfully to {Email}", order.Email);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error sending customer email: {Message}", ex.Message);
-                throw;
             }
         }
 
@@ -379,9 +378,12 @@ namespace EcommerceStore.Controllers
         {
             try
             {
+                var emailUser = Environment.GetEnvironmentVariable("EMAIL_USER");
+                var emailPass = Environment.GetEnvironmentVariable("EMAIL_PASS");
+
                 var message = new MimeMessage();
-                message.From.Add(new MailboxAddress("BAZARIO Store", "INFO.BAZARIO.STORE@gmail.com"));
-                message.To.Add(new MailboxAddress("Admin", "sajidabbas6024@gmail.com"));
+                message.From.Add(new MailboxAddress("BAZARIO Store", emailUser));
+                message.To.Add(new MailboxAddress("Admin", "sajidabbas6024@gmail.com")); // Admin hardcoded
                 message.Subject = $"🔔 New Order Received - Order #{order.Id}";
 
                 string body = $@"
@@ -487,31 +489,18 @@ namespace EcommerceStore.Controllers
 
                 message.Body = new TextPart("html") { Text = body };
 
-                using (var client = new SmtpClient())
-                {
-                    // Disable certificate validation (for testing only)
-                    client.ServerCertificateValidationCallback = (s, c, h, e) => true;
-
-                    // Connect to Gmail SMTP
-                    //client.Connect("smtp.gmail.com", 587, SecureSocketOptions.StartTls);
-                    client.Connect("smtp.gmail.com", 465, SecureSocketOptions.SslOnConnect);
-
-                    // Authenticate
-                    client.Authenticate("INFO.BAZARIO.STORE@gmail.com", "pyhs yayn vecz yakf");
-
-                    // Send email
-                    client.Send(message);
-
-                    // Disconnect
-                    client.Disconnect(true);
-                }
+                using var client = new MailKit.Net.Smtp.SmtpClient();
+                client.ServerCertificateValidationCallback = (s, c, h, e) => true;
+                client.Connect("smtp.gmail.com", 465, MailKit.Security.SecureSocketOptions.SslOnConnect);
+                client.Authenticate(emailUser, emailPass);
+                client.Send(message);
+                client.Disconnect(true);
 
                 _logger.LogInformation("Admin notification email sent successfully");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error sending admin email: {Message}", ex.Message);
-                throw;
             }
         }
     }

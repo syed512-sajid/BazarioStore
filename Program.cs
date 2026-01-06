@@ -102,18 +102,22 @@
 using Microsoft.EntityFrameworkCore;
 using EcommerceStore.Data;
 using Microsoft.AspNetCore.Identity;
+using MailKit.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-builder.Services.AddControllersWithViews();
+// ===============================
+// DATABASE - Persistent SQLite
+// ===============================
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                      ?? "Data Source=/data/Ecommerce.db";
 
-// Database connection (SQLite)
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")
-                      ?? "Data Source=App_Data/Ecommerce.db"));
+    options.UseSqlite(connectionString));
 
-// Identity setup
+// ===============================
+// IDENTITY
+// ===============================
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
 {
     options.Password.RequireDigit = true;
@@ -125,14 +129,16 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
-// Login path configuration
+// Login paths
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/Account/Login";
     options.AccessDeniedPath = "/Account/AccessDenied";
 });
 
-// Session support
+// ===============================
+// SESSION
+// ===============================
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
@@ -141,20 +147,25 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
+// ===============================
+// CONTROLLERS + VIEWS
+// ===============================
+builder.Services.AddControllersWithViews();
+
 var app = builder.Build();
 
-// Seed admin user
+// ===============================
+// SEED ADMIN USER
+// ===============================
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
     var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
 
-    // Admin role create
     if (!await roleManager.RoleExistsAsync("Admin"))
         await roleManager.CreateAsync(new IdentityRole("Admin"));
 
-    // Admin user create
     string adminEmail = "sajidabbas6024@gmail.com";
     string adminPassword = "sajid@6024";
 
@@ -174,7 +185,9 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// Configure the HTTP request pipeline
+// ===============================
+// MIDDLEWARE
+// ===============================
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -184,15 +197,21 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
-
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseSession();
 
-// Default route
+// ===============================
+// DEFAULT ROUTE
+// ===============================
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
+// ===============================
+// RAILWAY PORT
+// ===============================
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+app.Urls.Add($"http://0.0.0.0:{port}");
+
 app.Run();
-//app.Run("http://0.0.0.0:8080");
