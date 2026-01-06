@@ -5,17 +5,12 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using DotNetEnv;
 
-// Load .env variables
-Env.Load(); // Automatically loads .env from project root
+Env.Load(); // load .env
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Logging
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-
 // Database
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
                        ?? "Data Source=/data/Ecommerce.db";
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(connectionString));
@@ -27,17 +22,12 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>()
 
 // Session
 builder.Services.AddDistributedMemoryCache();
-builder.Services.AddSession(options =>
-{
-    options.IdleTimeout = TimeSpan.FromMinutes(30);
-    options.Cookie.HttpOnly = true;
-    options.Cookie.IsEssential = true;
-});
+builder.Services.AddSession();
 
-// Controllers & Views
+// Controllers + Views
 builder.Services.AddControllersWithViews();
 
-// Email settings from environment variables
+// Email Settings
 var emailSettings = new EmailSettings
 {
     SmtpHost = Environment.GetEnvironmentVariable("SMTP_HOST") ?? "smtp.gmail.com",
@@ -48,14 +38,14 @@ var emailSettings = new EmailSettings
     FromName = Environment.GetEnvironmentVariable("FROM_NAME") ?? "BAZARIO"
 };
 
-builder.Services.Configure<EmailSettings>(options =>
+builder.Services.Configure<EmailSettings>(opt =>
 {
-    options.SmtpHost = emailSettings.SmtpHost;
-    options.SmtpPort = emailSettings.SmtpPort;
-    options.SmtpUser = emailSettings.SmtpUser;
-    options.SmtpPass = emailSettings.SmtpPass;
-    options.FromEmail = emailSettings.FromEmail;
-    options.FromName = emailSettings.FromName;
+    opt.SmtpHost = emailSettings.SmtpHost;
+    opt.SmtpPort = emailSettings.SmtpPort;
+    opt.SmtpUser = emailSettings.SmtpUser;
+    opt.SmtpPass = emailSettings.SmtpPass;
+    opt.FromEmail = emailSettings.FromEmail;
+    opt.FromName = emailSettings.FromName;
 });
 
 // Register EmailService
@@ -71,7 +61,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseSession();
 
-// Default route
+// Default Route
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}"
