@@ -11,13 +11,16 @@ namespace EcommerceStore.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<CheckoutController> _logger;
+        private readonly IServiceScopeFactory _serviceScopeFactory;
 
         public CheckoutController(
             ApplicationDbContext context,
-            ILogger<CheckoutController> logger)
+            ILogger<CheckoutController> logger,
+            IServiceScopeFactory serviceScopeFactory)
         {
             _context = context;
             _logger = logger;
+            _serviceScopeFactory = serviceScopeFactory;
         }
 
         public IActionResult Index()
@@ -94,19 +97,31 @@ namespace EcommerceStore.Controllers
 
                 _logger.LogInformation("✅ Order #{OrderId} saved to database", order.Id);
 
-                // ⚡ QUEUE EMAIL FOR BACKGROUND PROCESSING
-                try
-                {
-                    _logger.LogInformation("📧 Queuing email for Order #{OrderId}", order.Id);
-                    BackgroundEmailService.QueueEmail(order, cart);
-                    _logger.LogInformation("✅ Email queued successfully for Order #{OrderId}", order.Id);
-                }
-                catch (Exception emailEx)
-                {
-                    _logger.LogError(emailEx, "❌ Failed to queue email for Order #{OrderId}", order.Id);
-                }
-
+                // Clear cart immediately
                 HttpContext.Session.Remove("Cart");
+
+                // Send emails in background (fire-and-forget)
+                _ = Task.Run(async () =>
+                {
+                    using var scope = _serviceScopeFactory.CreateScope();
+                    var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+                    var scopedLogger = scope.ServiceProvider.GetRequiredService<ILogger<CheckoutController>>();
+
+                    try
+                    {
+                        scopedLogger.LogInformation("📧 Sending emails for Order #{OrderId}", order.Id);
+                        
+                        await emailService.SendOrderConfirmationAsync(order, cart);
+                        scopedLogger.LogInformation("✅ Customer email sent for Order #{OrderId}", order.Id);
+
+                        await emailService.SendAdminNotificationAsync(order, cart);
+                        scopedLogger.LogInformation("✅ Admin email sent for Order #{OrderId}", order.Id);
+                    }
+                    catch (Exception ex)
+                    {
+                        scopedLogger.LogError(ex, "❌ Failed to send emails for Order #{OrderId}", order.Id);
+                    }
+                });
 
                 return Json(new { success = true, orderId = order.Id, message = "Order placed successfully." });
             }
