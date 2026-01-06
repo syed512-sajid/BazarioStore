@@ -4,10 +4,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const loader = document.getElementById("orderLoader");
     const toastEl = document.getElementById("orderToast");
-    const toastMessageEl = document.getElementById("toastMessage");
+    const toastBodyEl = document.getElementById("toastMessage");
     const toast = toastEl ? new bootstrap.Toast(toastEl, { delay: 4000 }) : null;
 
-    // Get Anti-forgery token
+    // =========================
+    // Anti-forgery token
+    // =========================
     function getToken() {
         const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
         if (!tokenInput) {
@@ -18,23 +20,24 @@ document.addEventListener("DOMContentLoaded", () => {
         return tokenInput.value;
     }
 
-    // Show toast helper
+    // =========================
+    // Toast helper
+    // =========================
     function showToast(type, message) {
-        if (!toastEl || !toastMessageEl) return;
-        toastMessageEl.textContent = message;
+        if (!toastEl) return; // no toast container
+        if (toastBodyEl) toastBodyEl.textContent = message;
+
         toastEl.classList.remove('bg-success', 'bg-danger');
         toastEl.classList.add(type === 'success' ? 'bg-success' : 'bg-danger');
-        toast.show();
+
+        if (toast) toast.show();
     }
 
-    /* =========================
-       POPUP MODAL FOR PAYMENT (COMING SOON)
-    ========================= */
+    // =========================
+    // Popup modal for payment (coming soon)
+    // =========================
     const popupModalEl = document.getElementById("popupModal");
-    let popupModal = null;
-    if (popupModalEl) {
-        popupModal = new bootstrap.Modal(popupModalEl, { backdrop: 'static', keyboard: true });
-    }
+    const popupModal = popupModalEl ? new bootstrap.Modal(popupModalEl, { backdrop: 'static', keyboard: true }) : null;
 
     const paymentSelect = document.getElementById("paymentMethod");
     const unavailablePayments = ["JazzCash", "EasyPaisa", "Bank"];
@@ -53,9 +56,9 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    /* =========================
-       FORM VALIDATION (Email & Phone)
-    ========================= */
+    // =========================
+    // Form validation (required, email, phone)
+    // =========================
     const requiredInputs = form.querySelectorAll('input[required], textarea[required], select[required]');
     requiredInputs.forEach(input => {
         input.addEventListener("blur", () => {
@@ -70,6 +73,7 @@ document.addEventListener("DOMContentLoaded", () => {
         input.addEventListener("input", () => input.classList.remove("is-invalid"));
     });
 
+    // Email validation
     const emailInput = form.querySelector('input[type="email"]');
     if (emailInput) {
         emailInput.addEventListener("blur", () => {
@@ -84,6 +88,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Phone validation
     const phoneInput = form.querySelector('input[type="tel"]');
     if (phoneInput) {
         phoneInput.addEventListener("input", () => {
@@ -101,9 +106,9 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    /* =========================
-       FORM SUBMIT
-    ========================= */
+    // =========================
+    // Form submit
+    // =========================
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
@@ -116,25 +121,25 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!token) return;
 
         const submitBtn = form.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
+        const originalText = submitBtn ? submitBtn.innerHTML : "Submit";
 
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
-        loader.classList.remove("d-none");
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+        }
+        if (loader) loader.classList.remove("d-none");
 
         try {
             const response = await fetch(form.action || "/Checkout/PlaceOrder", {
                 method: "POST",
                 body: new FormData(form),
-                headers: {
-                    "RequestVerificationToken": token
-                }
+                headers: { "RequestVerificationToken": token }
             });
 
             const data = await response.json();
-            loader.classList.add("d-none");
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
+
+            if (loader) loader.classList.add("d-none");
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; }
 
             if (response.ok && data.success) {
                 showToast('success', data.message || "Order placed successfully!");
@@ -144,9 +149,8 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         } catch (err) {
             console.error(err);
-            loader.classList.add("d-none");
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
+            if (loader) loader.classList.add("d-none");
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = originalText; }
             showToast('error', "Server error occurred. Please try again.");
         }
     });
