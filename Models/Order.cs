@@ -26,12 +26,22 @@ namespace EcommerceStore.Models
         public string PaymentMethod { get; set; }
 
         public DateTime OrderDate { get; set; }
+
         public decimal TotalAmount { get; set; }
+
+        // Order Status: Pending, Processing, Delivered, Cancelled, NotAccepted
         public string Status { get; set; } = "Pending";
+
+        // Reason for cancellation or rejection
         public string? StatusReason { get; set; }
+
+        // Track when status was last updated
         public DateTime? StatusUpdatedAt { get; set; }
+
+        // Track if notification email was sent
         public bool NotificationSent { get; set; } = false;
 
+        // Unique Tracking ID
         [Required]
         public string TrackingId { get; set; } = "";
 
