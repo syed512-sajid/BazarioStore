@@ -81,7 +81,12 @@ namespace EcommerceStore.Services
             {
                 client.ServerCertificateValidationCallback = (s, c, h, e) => true;
 
-                await client.ConnectAsync(_smtpHost, _smtpPort, SecureSocketOptions.Auto
+             await client.ConnectAsync(
+    "smtp.gmail.com",
+    465,
+    SecureSocketOptions.SslOnConnect
+);
+
 );
                 await client.AuthenticateAsync(_smtpUser, _smtpPass);
                 await client.SendAsync(message);
