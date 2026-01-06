@@ -1,6 +1,6 @@
 using EcommerceStore.Data;
-using EcommerceStore.Models;
 using EcommerceStore.Services;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,12 +14,14 @@ builder.Logging.AddConsole();
 builder.Logging.SetMinimumLevel(LogLevel.Information);
 
 // ===============================
-// DATABASE - SQLite (Railway volume)
+// DATA DIRECTORIES (Railway)
 // ===============================
-var dbPath = "/data";
-if (!Directory.Exists(dbPath))
-    Directory.CreateDirectory(dbPath);
+Directory.CreateDirectory("/data");
+Directory.CreateDirectory("/data/dataprotection-keys");
 
+// ===============================
+// DATABASE - SQLite
+// ===============================
 var connectionString =
     builder.Configuration.GetConnectionString("DefaultConnection")
     ?? "Data Source=/data/Ecommerce.db";
@@ -28,18 +30,18 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(connectionString));
 
 // ===============================
+// DATA PROTECTION (🔥 FIX)
+// ===============================
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo("/data/dataprotection-keys"))
+    .SetApplicationName("BazarioApp");
+
+// ===============================
 // IDENTITY
 // ===============================
-builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
-{
-    options.Password.RequiredLength = 6;
-    options.Password.RequireDigit = true;
-    options.Password.RequireUppercase = false;
-    options.Password.RequireLowercase = false;
-    options.Password.RequireNonAlphanumeric = false;
-})
-.AddEntityFrameworkStores<ApplicationDbContext>()
-.AddDefaultTokenProviders();
+builder.Services.AddIdentity<IdentityUser, IdentityRole>()
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders();
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -68,76 +70,15 @@ builder.Services.AddControllersWithViews();
 // ===============================
 builder.Services.AddScoped<IEmailService, EmailService>();
 
-// ===============================
-// BUILD
-// ===============================
 var app = builder.Build();
 
 // ===============================
-// STARTUP LOGS
-// ===============================
-var logger = app.Services.GetRequiredService<ILoggerFactory>()
-    .CreateLogger("Program");
-
-logger.LogInformation("===========================================");
-logger.LogInformation("📧 EMAIL CONFIGURATION CHECK");
-logger.LogInformation("===========================================");
-logger.LogInformation("SMTP Host: {Host}", Environment.GetEnvironmentVariable("SMTP_HOST"));
-logger.LogInformation("SMTP Port: {Port}", Environment.GetEnvironmentVariable("SMTP_PORT"));
-logger.LogInformation("SMTP User: {User}",
-    string.IsNullOrEmpty(Environment.GetEnvironmentVariable("EMAIL_USER"))
-        ? "❌ NOT SET"
-        : "✅ SET");
-logger.LogInformation("From Name: {Name}", Environment.GetEnvironmentVariable("FROM_NAME"));
-logger.LogInformation("===========================================");
-
-// ===============================
-// MIGRATION + ADMIN SEED (SAFE)
+// MIGRATION
 // ===============================
 using (var scope = app.Services.CreateScope())
 {
-    try
-    {
-        logger.LogInformation("🔄 Applying database migrations...");
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        await db.Database.MigrateAsync();
-        logger.LogInformation("✅ Database ready");
-
-        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
-
-        if (!await roleManager.RoleExistsAsync("Admin"))
-        {
-            await roleManager.CreateAsync(new IdentityRole("Admin"));
-            logger.LogInformation("✅ Admin role created");
-        }
-
-        const string adminEmail = "sajidabbas6024@gmail.com";
-        const string adminPassword = "sajid@6024";
-
-        var admin = await userManager.FindByEmailAsync(adminEmail);
-        if (admin == null)
-        {
-            admin = new IdentityUser
-            {
-                UserName = adminEmail,
-                Email = adminEmail,
-                EmailConfirmed = true
-            };
-
-            var result = await userManager.CreateAsync(admin, adminPassword);
-            if (result.Succeeded)
-            {
-                await userManager.AddToRoleAsync(admin, "Admin");
-                logger.LogInformation("✅ Admin user created");
-            }
-        }
-    }
-    catch (Exception ex)
-    {
-        logger.LogCritical(ex, "❌ Startup failed");
-        throw;
-    }
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await db.Database.MigrateAsync();
 }
 
 // ===============================
@@ -149,23 +90,14 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-// ❌ DO NOT USE HTTPS REDIRECT ON RAILWAY
-// app.UseHttpsRedirection();
-
 app.UseStaticFiles();
 app.UseRouting();
 app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// ===============================
-// ROUTES
-// ===============================
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
-
-logger.LogInformation("🚀 Application started");
-logger.LogInformation("🌐 Environment: {Env}", app.Environment.EnvironmentName);
 
 app.Run();
