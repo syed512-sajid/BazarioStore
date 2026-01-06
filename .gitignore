@@ -1,3 +1,10 @@
-.vs/
-obj/
+﻿# Build folders
 bin/
+obj/
+
+# SQLite temp files
+App_Data/*.db-shm
+App_Data/*.db-wal
+
+# Visual Studio
+.vs/
