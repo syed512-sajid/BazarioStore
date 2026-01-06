@@ -34,11 +34,14 @@ namespace EcommerceStore.Services
             _smtpPort = int.TryParse(port, out var p) ? p : 587;
 
             _logger.LogInformation("📧 EMAIL CONFIG CHECK");
-            _logger.LogInformation("SMTP User: {User}", _smtpUser);
+            _logger.LogInformation("SMTP User: {User}", string.IsNullOrEmpty(_smtpUser) ? "❌ NOT SET" : "✅ SET");
             _logger.LogInformation("SMTP Host: {Host}", _smtpHost);
             _logger.LogInformation("SMTP Port: {Port}", _smtpPort);
         }
 
+        // ============================
+        // CUSTOMER EMAIL
+        // ============================
         public async Task SendOrderConfirmationAsync(Order order, List<CartItem> cart)
         {
             if (!IsConfigured()) return;
@@ -56,14 +59,16 @@ namespace EcommerceStore.Services
             await SendAsync(message);
         }
 
+        // ============================
+        // ADMIN EMAIL
+        // ============================
         public async Task SendAdminNotificationAsync(Order order, List<CartItem> cart)
         {
             if (!IsConfigured()) return;
 
             var message = new MimeMessage();
             message.From.Add(new MailboxAddress(_fromName, _smtpUser));
-          message.To.Add(new MailboxAddress("Admin", "sajidabbas6024@gmail.com"));
-
+            message.To.Add(new MailboxAddress("Admin", "sajidabbas6024@gmail.com"));
             message.Subject = $"🔔 New Order #{order.Id}";
 
             message.Body = new TextPart("html")
@@ -74,34 +79,38 @@ namespace EcommerceStore.Services
             await SendAsync(message);
         }
 
-       private async Task SendAsync(MimeMessage message)
-{
-    using var client = new SmtpClient();
-    try
-    {
-        client.ServerCertificateValidationCallback = (s, c, h, e) => true;
+        // ============================
+        // SMTP SEND (SAFE)
+        // ============================
+        private async Task SendAsync(MimeMessage message)
+        {
+            try
+            {
+                using var client = new SmtpClient();
 
-        await client.ConnectAsync(
-            _smtpHost,
-            _smtpPort,
-            SecureSocketOptions.StartTls
-        );
+                await client.ConnectAsync(
+                    _smtpHost,
+                    _smtpPort,
+                    SecureSocketOptions.StartTls
+                );
 
-        await client.AuthenticateAsync(_smtpUser, _smtpPass);
-        await client.SendAsync(message);
-        await client.DisconnectAsync(true);
+                await client.AuthenticateAsync(_smtpUser, _smtpPass);
+                await client.SendAsync(message);
+                await client.DisconnectAsync(true);
 
-        _logger.LogInformation("✅ EMAIL SENT");
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "❌ EMAIL FAILED");
-    }
-}
+                _logger.LogInformation("✅ Email sent successfully");
+            }
+            catch (Exception ex)
+            {
+                // IMPORTANT: never crash app
+                _logger.LogError(ex, "❌ Email sending failed");
+            }
+        }
 
         private bool IsConfigured()
         {
-            if (string.IsNullOrEmpty(_smtpUser) || string.IsNullOrEmpty(_smtpPass))
+            if (string.IsNullOrWhiteSpace(_smtpUser) ||
+                string.IsNullOrWhiteSpace(_smtpPass))
             {
                 _logger.LogWarning("⚠️ Email credentials missing");
                 return false;
@@ -109,6 +118,9 @@ namespace EcommerceStore.Services
             return true;
         }
 
+        // ============================
+        // EMAIL TEMPLATES
+        // ============================
         private string BuildCustomerEmailBody(Order order, List<CartItem> cart)
         {
             var items = string.Join("", cart.Select(i =>
@@ -117,14 +129,25 @@ namespace EcommerceStore.Services
 
             return $@"
                 <h2>Thank you for your order!</h2>
-                <p>Hi <b>{order.CustomerName}</b></p>
-                <p>Your order <b>#{order.Id}</b> is confirmed.</p>
-                <table border='1' cellpadding='8'>
-                    <tr><th>Product</th><th>Qty</th><th>Price</th></tr>
+                <p>Hi <b>{order.CustomerName}</b>,</p>
+                <p>Your order <b>#{order.Id}</b> has been successfully placed.</p>
+
+                <table border='1' cellpadding='8' cellspacing='0'>
+                    <tr>
+                        <th>Product</th>
+                        <th>Qty</th>
+                        <th>Price</th>
+                    </tr>
                     {items}
-                    <tr><td colspan='2'><b>Total</b></td><td><b>Rs. {order.TotalAmount:N0}</b></td></tr>
+                    <tr>
+                        <td colspan='2'><b>Total</b></td>
+                        <td><b>Rs. {order.TotalAmount:N0}</b></td>
+                    </tr>
                 </table>
-                <p>Tracking ID: <b>{order.TrackingId}</b></p>";
+
+                <p><b>Tracking ID:</b> {order.TrackingId}</p>
+                <p>We will contact you soon.</p>
+                <p>— BAZARIO Team</p>";
         }
 
         private string BuildAdminEmailBody(Order order, List<CartItem> cart)
@@ -134,16 +157,24 @@ namespace EcommerceStore.Services
             ));
 
             return $@"
-                <h2>New Order Received</h2>
-                <p>Order #{order.Id}</p>
-                <p>Customer: {order.CustomerName}</p>
-                <p>Phone: {order.Phone}</p>
-                <table border='1' cellpadding='8'>
-                    <tr><th>Product</th><th>Qty</th><th>Price</th></tr>
+                <h2>🛒 New Order Received</h2>
+
+                <p><b>Order ID:</b> {order.Id}</p>
+                <p><b>Customer:</b> {order.CustomerName}</p>
+                <p><b>Email:</b> {order.Email}</p>
+                <p><b>Phone:</b> {order.Phone}</p>
+                <p><b>Payment:</b> {order.PaymentMethod}</p>
+
+                <table border='1' cellpadding='8' cellspacing='0'>
+                    <tr>
+                        <th>Product</th>
+                        <th>Qty</th>
+                        <th>Price</th>
+                    </tr>
                     {items}
-                </table>";
+                </table>
+
+                <p><b>Total:</b> Rs. {order.TotalAmount:N0}</p>";
         }
     }
 }
-
-
