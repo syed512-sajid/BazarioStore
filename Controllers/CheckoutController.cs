@@ -11,13 +11,16 @@ namespace EcommerceStore.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<CheckoutController> _logger;
+        private readonly IEmailService _emailService;
 
         public CheckoutController(
             ApplicationDbContext context,
-            ILogger<CheckoutController> logger)
+            ILogger<CheckoutController> logger,
+            IEmailService emailService)
         {
             _context = context;
             _logger = logger;
+            _emailService = emailService;
         }
 
         public IActionResult Index()
@@ -92,9 +95,22 @@ namespace EcommerceStore.Controllers
 
                 _logger.LogInformation("✅ Order #{OrderId} saved to database", order.Id);
 
-                // Queue email for background processing (non-blocking)
-                BackgroundEmailService.QueueEmail(order, cart);
-                _logger.LogInformation("📧 Email queued for Order #{OrderId}", order.Id);
+                // ⚡ DIRECT EMAIL SEND (No background service)
+                try
+                {
+                    _logger.LogInformation("📧 Sending emails directly for Order #{OrderId}", order.Id);
+                    
+                    await _emailService.SendOrderConfirmationAsync(order, cart);
+                    _logger.LogInformation("✅ Customer email sent for Order #{OrderId}", order.Id);
+                    
+                    await _emailService.SendAdminNotificationAsync(order, cart);
+                    _logger.LogInformation("✅ Admin email sent for Order #{OrderId}", order.Id);
+                }
+                catch (Exception emailEx)
+                {
+                    _logger.LogError(emailEx, "❌ Email sending failed for Order #{OrderId}", order.Id);
+                    // Don't fail the order if email fails
+                }
 
                 HttpContext.Session.Remove("Cart");
 
