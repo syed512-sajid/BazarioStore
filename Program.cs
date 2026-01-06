@@ -53,20 +53,56 @@ builder.Services.AddSession(options =>
 builder.Services.AddControllersWithViews();
 
 // ===============================
-// EMAIL SETTINGS
+// EMAIL SETTINGS (Load from Environment Variables)
 // ===============================
-builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+var emailSettings = new EmailSettings
+{
+    SmtpHost = Environment.GetEnvironmentVariable("SMTP_HOST") ?? "smtp.gmail.com",
+    SmtpPort = int.Parse(Environment.GetEnvironmentVariable("SMTP_PORT") ?? "587"),
+    SmtpUser = Environment.GetEnvironmentVariable("EMAIL_USER") ?? "",
+    SmtpPass = Environment.GetEnvironmentVariable("EMAIL_PASS") ?? "",
+    FromEmail = Environment.GetEnvironmentVariable("EMAIL_USER") ?? "info.bazario.store@gmail.com",
+    FromName = Environment.GetEnvironmentVariable("FROM_NAME") ?? "BAZARIO"
+};
+
+builder.Services.Configure<EmailSettings>(options =>
+{
+    options.SmtpHost = emailSettings.SmtpHost;
+    options.SmtpPort = emailSettings.SmtpPort;
+    options.SmtpUser = emailSettings.SmtpUser;
+    options.SmtpPass = emailSettings.SmtpPass;
+    options.FromEmail = emailSettings.FromEmail;
+    options.FromName = emailSettings.FromName;
+});
 
 // ===============================
-// EMAIL SERVICES (NEW)
+// EMAIL SERVICES - CRITICAL FIX
 // ===============================
 builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddHostedService<BackgroundEmailService>();
+builder.Services.AddSingleton<BackgroundEmailService>(); // Register as Singleton first
+builder.Services.AddHostedService(provider => provider.GetRequiredService<BackgroundEmailService>()); // Then as HostedService
+
+// ===============================
+// LOGGING - Enhanced for debugging
+// ===============================
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.SetMinimumLevel(LogLevel.Information);
 
 // ===============================
 // BUILD APP
 // ===============================
 var app = builder.Build();
+
+// ===============================
+// LOG EMAIL CONFIGURATION
+// ===============================
+var logger = app.Services.GetRequiredService<ILogger<Program>>();
+logger.LogInformation("📧 Email Configuration:");
+logger.LogInformation("   SMTP Host: {Host}", emailSettings.SmtpHost);
+logger.LogInformation("   SMTP Port: {Port}", emailSettings.SmtpPort);
+logger.LogInformation("   SMTP User: {User}", string.IsNullOrEmpty(emailSettings.SmtpUser) ? "❌ NOT SET" : "✅ " + emailSettings.SmtpUser);
+logger.LogInformation("   SMTP Pass: {Pass}", string.IsNullOrEmpty(emailSettings.SmtpPass) ? "❌ NOT SET" : "✅ Configured");
 
 // ===============================
 // APPLY MIGRATIONS AND SEED ADMIN USER
@@ -129,5 +165,7 @@ app.MapControllerRoute(
 // ===============================
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 app.Urls.Add($"http://0.0.0.0:{port}");
+
+logger.LogInformation("🚀 Application starting on port {Port}", port);
 
 app.Run();
