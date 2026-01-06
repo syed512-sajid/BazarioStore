@@ -16,273 +16,160 @@ namespace EcommerceStore.Services
         private readonly ILogger<EmailService> _logger;
         private readonly EmailSettings _emailSettings;
 
-        public EmailService(ILogger<EmailService> logger, Microsoft.Extensions.Options.IOptions<EmailSettings> emailSettings)
+        public EmailService(
+            ILogger<EmailService> logger,
+            Microsoft.Extensions.Options.IOptions<EmailSettings> emailSettings)
         {
             _logger = logger;
             _emailSettings = emailSettings.Value;
 
-            // Load from environment variables (Railway)
-            var envUser = Environment.GetEnvironmentVariable("EMAIL_USER");
-            var envPass = Environment.GetEnvironmentVariable("EMAIL_PASS");
+            // 🔥 LOAD ALL SETTINGS FROM RAILWAY ENV VARIABLES
+            _emailSettings.SmtpUser = Environment.GetEnvironmentVariable("EMAIL_USER");
+            _emailSettings.SmtpPass = Environment.GetEnvironmentVariable("EMAIL_PASS");
+            _emailSettings.SmtpHost = Environment.GetEnvironmentVariable("SMTP_HOST") ?? "smtp.gmail.com";
+            _emailSettings.FromName = Environment.GetEnvironmentVariable("FROM_NAME") ?? "BAZARIO";
 
-            if (!string.IsNullOrEmpty(envUser))
-            {
-                _emailSettings.SmtpUser = envUser;
-                _emailSettings.FromEmail = envUser;
-            }
+            var port = Environment.GetEnvironmentVariable("SMTP_PORT");
+            _emailSettings.SmtpPort = int.TryParse(port, out var p) ? p : 587;
 
-            if (!string.IsNullOrEmpty(envPass))
-            {
-                _emailSettings.SmtpPass = envPass;
-            }
+            _emailSettings.FromEmail = _emailSettings.SmtpUser;
 
-            _logger.LogInformation("🔧 EmailService initialized");
-            _logger.LogInformation("   SMTP User: {User}", _emailSettings.SmtpUser ?? "NOT SET");
-            _logger.LogInformation("   SMTP Pass: {Pass}", string.IsNullOrEmpty(_emailSettings.SmtpPass) ? "NOT SET" : "SET");
+            // 🔍 LOG CONFIG (DEBUG PURPOSE)
+            _logger.LogInformation("📧 EMAIL CONFIGURATION CHECK");
+            _logger.LogInformation("SMTP User: {User}", _emailSettings.SmtpUser);
+            _logger.LogInformation("SMTP Host: {Host}", _emailSettings.SmtpHost);
+            _logger.LogInformation("SMTP Port: {Port}", _emailSettings.SmtpPort);
+            _logger.LogInformation("From Email: {Email}", _emailSettings.FromEmail);
+            _logger.LogInformation("From Name: {Name}", _emailSettings.FromName);
         }
 
+        // ===============================
+        // CUSTOMER EMAIL
+        // ===============================
         public async Task SendOrderConfirmationAsync(Order order, List<CartItem> cart)
         {
-            try
+            if (!IsConfigured()) return;
+
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(_emailSettings.FromName, _emailSettings.FromEmail));
+            message.To.Add(new MailboxAddress(order.CustomerName, order.Email));
+            message.Subject = $"✅ Order Confirmed - BAZARIO #{order.Id}";
+
+            message.Body = new TextPart("html")
             {
-                _logger.LogInformation("📧 [CUSTOMER EMAIL] Starting for Order #{OrderId}", order.Id);
+                Text = BuildCustomerEmailBody(order, cart)
+            };
 
-                if (string.IsNullOrEmpty(_emailSettings.SmtpUser) || string.IsNullOrEmpty(_emailSettings.SmtpPass))
-                {
-                    _logger.LogWarning("⚠️ Email credentials not configured. Skipping customer email.");
-                    return;
-                }
-
-                _logger.LogInformation("📧 Building email message...");
-                var message = new MimeMessage();
-                message.From.Add(new MailboxAddress(_emailSettings.FromName, _emailSettings.FromEmail));
-                message.To.Add(new MailboxAddress(order.CustomerName, order.Email));
-                message.Subject = $"✅ Order Confirmed - BAZARIO #{order.Id}";
-
-                string body = BuildCustomerEmailBody(order, cart);
-                message.Body = new TextPart("html") { Text = body };
-
-                _logger.LogInformation("📧 Message built. Sending to {Email}...", order.Email);
-                await SendEmailAsync(message);
-                _logger.LogInformation("✅ [CUSTOMER EMAIL] Sent successfully to {Email}", order.Email);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "❌ [CUSTOMER EMAIL] Failed for Order #{OrderId}. Error: {Message}", 
-                    order.Id, ex.Message);
-                _logger.LogError("Stack trace: {StackTrace}", ex.StackTrace);
-                throw; // Re-throw to let caller handle
-            }
+            await SendAsync(message);
         }
 
+        // ===============================
+        // ADMIN EMAIL
+        // ===============================
         public async Task SendAdminNotificationAsync(Order order, List<CartItem> cart)
         {
-            try
+            if (!IsConfigured()) return;
+
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(_emailSettings.FromName, _emailSettings.FromEmail));
+            message.To.Add(new MailboxAddress("Admin", "sajidabbas6024@gmail.com"));
+            message.Subject = $"🔔 New Order #{order.Id} - {order.CustomerName}";
+
+            message.Body = new TextPart("html")
             {
-                _logger.LogInformation("📧 [ADMIN EMAIL] Starting for Order #{OrderId}", order.Id);
+                Text = BuildAdminEmailBody(order, cart)
+            };
 
-                if (string.IsNullOrEmpty(_emailSettings.SmtpUser) || string.IsNullOrEmpty(_emailSettings.SmtpPass))
-                {
-                    _logger.LogWarning("⚠️ Email credentials not configured. Skipping admin email.");
-                    return;
-                }
-
-                _logger.LogInformation("📧 Building admin email message...");
-                var message = new MimeMessage();
-                message.From.Add(new MailboxAddress(_emailSettings.FromName, _emailSettings.FromEmail));
-                message.To.Add(new MailboxAddress("Admin", "sajidabbas6024@gmail.com"));
-                message.Subject = $"🔔 New Order #{order.Id} from {order.CustomerName}";
-
-                string body = BuildAdminEmailBody(order, cart);
-                message.Body = new TextPart("html") { Text = body };
-
-                _logger.LogInformation("📧 Admin message built. Sending...");
-                await SendEmailAsync(message);
-                _logger.LogInformation("✅ [ADMIN EMAIL] Sent successfully");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "❌ [ADMIN EMAIL] Failed for Order #{OrderId}. Error: {Message}", 
-                    order.Id, ex.Message);
-                _logger.LogError("Stack trace: {StackTrace}", ex.StackTrace);
-                throw; // Re-throw to let caller handle
-            }
+            await SendAsync(message);
         }
 
-        private async Task SendEmailAsync(MimeMessage message)
+        // ===============================
+        // SMTP CORE METHOD
+        // ===============================
+        private async Task SendAsync(MimeMessage message)
         {
             using var client = new SmtpClient();
 
             try
             {
-                _logger.LogInformation("🔌 Configuring SMTP client...");
+                _logger.LogInformation("🔌 Connecting to SMTP...");
+
                 client.ServerCertificateValidationCallback = (s, c, h, e) => true;
-                client.CheckCertificateRevocation = false;
-                client.Timeout = 60000; // 60 second timeout
+                client.Timeout = 60000;
 
-                _logger.LogInformation("🔌 Connecting to {Host}:{Port}...", _emailSettings.SmtpHost, _emailSettings.SmtpPort);
+                // ✅ GMAIL SAFE MODE
+                await client.ConnectAsync(
+                    _emailSettings.SmtpHost,
+                    _emailSettings.SmtpPort,
+                    SecureSocketOptions.StartTls
+                );
 
-                var secureSocketOptions = _emailSettings.SmtpPort == 587
-                    ? SecureSocketOptions.StartTls
-                    : SecureSocketOptions.SslOnConnect;
+                await client.AuthenticateAsync(
+                    _emailSettings.SmtpUser,
+                    _emailSettings.SmtpPass
+                );
 
-                await client.ConnectAsync(_emailSettings.SmtpHost, _emailSettings.SmtpPort, secureSocketOptions);
-                _logger.LogInformation("✅ Connected to SMTP server");
-
-                _logger.LogInformation("🔐 Authenticating as {User}...", _emailSettings.SmtpUser);
-                await client.AuthenticateAsync(_emailSettings.SmtpUser, _emailSettings.SmtpPass);
-                _logger.LogInformation("✅ Authentication successful");
-
-                _logger.LogInformation("📤 Sending email...");
                 await client.SendAsync(message);
-                _logger.LogInformation("✅ Email sent");
-
                 await client.DisconnectAsync(true);
-                _logger.LogInformation("🔌 Disconnected from SMTP server");
+
+                _logger.LogInformation("✅ EMAIL SENT SUCCESSFULLY");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ SMTP Error: {Message}", ex.Message);
-                _logger.LogError("   SMTP Host: {Host}", _emailSettings.SmtpHost);
-                _logger.LogError("   SMTP Port: {Port}", _emailSettings.SmtpPort);
-                _logger.LogError("   SMTP User: {User}", _emailSettings.SmtpUser);
+                _logger.LogError(ex, "❌ EMAIL FAILED");
                 throw;
             }
         }
 
+        // ===============================
+        // HELPERS
+        // ===============================
+        private bool IsConfigured()
+        {
+            if (string.IsNullOrEmpty(_emailSettings.SmtpUser) ||
+                string.IsNullOrEmpty(_emailSettings.SmtpPass))
+            {
+                _logger.LogWarning("⚠️ Email credentials missing. Email skipped.");
+                return false;
+            }
+            return true;
+        }
+
         private string BuildCustomerEmailBody(Order order, List<CartItem> cart)
         {
-            string itemsHtml = "";
-            foreach (var item in cart)
-            {
-                itemsHtml += $@"
-                    <tr>
-                        <td style='padding: 10px; border: 1px solid #ddd;'>{item.ProductName}</td>
-                        <td style='padding: 10px; text-align: center; border: 1px solid #ddd;'>{item.Quantity}</td>
-                        <td style='padding: 10px; text-align: right; border: 1px solid #ddd;'>Rs. {item.Price:N0}</td>
-                    </tr>";
-            }
+            var items = string.Join("", cart.Select(i =>
+                $"<tr><td>{i.ProductName}</td><td>{i.Quantity}</td><td>Rs. {i.Price:N0}</td></tr>"
+            ));
 
             return $@"
-                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;'>
-                    <h2 style='color: #28a745;'>Order Confirmation</h2>
-                    <p>Hi <strong>{order.CustomerName}</strong>,</p>
-                    <p>Your order <strong>#{order.Id}</strong> has been received successfully!</p>
-                    
-                    <div style='background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;'>
-                        <p style='margin: 5px 0;'><strong>Tracking ID:</strong> {order.TrackingId}</p>
-                        <p style='margin: 5px 0;'><strong>Order Date:</strong> {order.OrderDate:dd MMM yyyy HH:mm}</p>
-                        <p style='margin: 5px 0;'><strong>Status:</strong> {order.Status}</p>
-                    </div>
-
-                    <h3>Order Items:</h3>
-                    <table style='width: 100%; border-collapse: collapse; margin: 20px 0;'>
-                        <thead>
-                            <tr style='background: #007bff; color: white;'>
-                                <th style='padding: 10px; text-align: left;'>Product</th>
-                                <th style='padding: 10px; text-align: center;'>Qty</th>
-                                <th style='padding: 10px; text-align: right;'>Price</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {itemsHtml}
-                        </tbody>
-                        <tfoot>
-                            <tr style='background: #f8f9fa; font-weight: bold;'>
-                                <td colspan='2' style='padding: 10px; border: 1px solid #ddd;'>Total</td>
-                                <td style='padding: 10px; text-align: right; border: 1px solid #ddd; color: #28a745;'>Rs. {order.TotalAmount:N0}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-
-                    <h3>Delivery Information:</h3>
-                    <div style='background: #f8f9fa; padding: 15px; border-radius: 5px;'>
-                        <p style='margin: 5px 0;'><strong>Address:</strong> {order.Address}</p>
-                        {(!string.IsNullOrEmpty(order.Landmark) ? $"<p style='margin: 5px 0;'><strong>Landmark:</strong> {order.Landmark}</p>" : "")}
-                        <p style='margin: 5px 0;'><strong>Phone:</strong> {order.Phone}</p>
-                        <p style='margin: 5px 0;'><strong>Payment Method:</strong> {order.PaymentMethod}</p>
-                    </div>
-
-                    <p style='margin-top: 30px; color: #6c757d; font-size: 14px;'>Thank you for shopping with <strong>BAZARIO</strong>!</p>
-                </div>";
+                <h2>Thank you for your order!</h2>
+                <p>Hi <b>{order.CustomerName}</b>,</p>
+                <p>Your order <b>#{order.Id}</b> has been confirmed.</p>
+                <table border='1' cellpadding='8' cellspacing='0'>
+                    <tr><th>Product</th><th>Qty</th><th>Price</th></tr>
+                    {items}
+                    <tr><td colspan='2'><b>Total</b></td><td><b>Rs. {order.TotalAmount:N0}</b></td></tr>
+                </table>
+                <p><b>Tracking ID:</b> {order.TrackingId}</p>
+                <p>— BAZARIO</p>";
         }
 
         private string BuildAdminEmailBody(Order order, List<CartItem> cart)
         {
-            string itemsHtml = "";
-            foreach (var item in cart)
-            {
-                itemsHtml += $@"
-                    <tr>
-                        <td style='padding: 10px; border: 1px solid #ddd;'>{item.ProductName}</td>
-                        <td style='padding: 10px; text-align: center; border: 1px solid #ddd;'>{item.Quantity}</td>
-                        <td style='padding: 10px; text-align: right; border: 1px solid #ddd;'>Rs. {item.Price:N0}</td>
-                    </tr>";
-            }
+            var items = string.Join("", cart.Select(i =>
+                $"<tr><td>{i.ProductName}</td><td>{i.Quantity}</td><td>Rs. {i.Price:N0}</td></tr>"
+            ));
 
             return $@"
-                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;'>
-                    <h2 style='color: #007bff;'>🔔 New Order Received</h2>
-                    
-                    <div style='background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 20px 0;'>
-                        <p style='margin: 0; font-size: 16px;'><strong>Order #{order.Id}</strong> from <strong>{order.CustomerName}</strong></p>
-                        <p style='margin: 5px 0 0 0; color: #856404;'>Tracking: {order.TrackingId}</p>
-                    </div>
-
-                    <h3>Customer Details:</h3>
-                    <table style='width: 100%; margin: 10px 0;'>
-                        <tr>
-                            <td style='padding: 5px;'><strong>Name:</strong></td>
-                            <td style='padding: 5px;'>{order.CustomerName}</td>
-                        </tr>
-                        <tr>
-                            <td style='padding: 5px;'><strong>Email:</strong></td>
-                            <td style='padding: 5px;'>{order.Email}</td>
-                        </tr>
-                        <tr>
-                            <td style='padding: 5px;'><strong>Phone:</strong></td>
-                            <td style='padding: 5px;'>{order.Phone}</td>
-                        </tr>
-                        <tr>
-                            <td style='padding: 5px;'><strong>Address:</strong></td>
-                            <td style='padding: 5px;'>{order.Address}</td>
-                        </tr>
-                        {(!string.IsNullOrEmpty(order.Landmark) ? $@"
-                        <tr>
-                            <td style='padding: 5px;'><strong>Landmark:</strong></td>
-                            <td style='padding: 5px;'>{order.Landmark}</td>
-                        </tr>" : "")}
-                        <tr>
-                            <td style='padding: 5px;'><strong>Payment:</strong></td>
-                            <td style='padding: 5px;'>{order.PaymentMethod}</td>
-                        </tr>
-                    </table>
-
-                    <h3>Order Items:</h3>
-                    <table style='width: 100%; border-collapse: collapse; margin: 20px 0;'>
-                        <thead>
-                            <tr style='background: #007bff; color: white;'>
-                                <th style='padding: 10px; text-align: left;'>Product</th>
-                                <th style='padding: 10px; text-align: center;'>Qty</th>
-                                <th style='padding: 10px; text-align: right;'>Price</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {itemsHtml}
-                        </tbody>
-                        <tfoot>
-                            <tr style='background: #d4edda; font-weight: bold;'>
-                                <td colspan='2' style='padding: 10px; border: 1px solid #ddd;'>Total Amount</td>
-                                <td style='padding: 10px; text-align: right; border: 1px solid #ddd; color: #28a745;'>Rs. {order.TotalAmount:N0}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-
-                    <p style='margin-top: 30px; padding: 15px; background: #e7f3ff; border-radius: 5px;'>
-                        ⏰ <strong>Order Time:</strong> {order.OrderDate:dd MMM yyyy HH:mm}<br>
-                        📦 <strong>Status:</strong> {order.Status}
-                    </p>
-                </div>";
+                <h2>New Order Received</h2>
+                <p><b>Order:</b> #{order.Id}</p>
+                <p><b>Customer:</b> {order.CustomerName}</p>
+                <p><b>Phone:</b> {order.Phone}</p>
+                <table border='1' cellpadding='8' cellspacing='0'>
+                    <tr><th>Product</th><th>Qty</th><th>Price</th></tr>
+                    {items}
+                    <tr><td colspan='2'><b>Total</b></td><td><b>Rs. {order.TotalAmount:N0}</b></td></tr>
+                </table>";
         }
     }
 }
