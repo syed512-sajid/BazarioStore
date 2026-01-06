@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using DotNetEnv;
 
-Env.Load(); // load .env
+Env.Load(); // Load .env variables
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,7 +27,7 @@ builder.Services.AddSession();
 // Controllers + Views
 builder.Services.AddControllersWithViews();
 
-// Email Settings
+// Email Settings from .env
 var emailSettings = new EmailSettings
 {
     SmtpHost = Environment.GetEnvironmentVariable("SMTP_HOST") ?? "smtp.gmail.com",
