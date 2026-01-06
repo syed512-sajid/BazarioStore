@@ -62,7 +62,8 @@ namespace EcommerceStore.Services
 
             var message = new MimeMessage();
             message.From.Add(new MailboxAddress(_fromName, _smtpUser));
-            message.To.Add(new MailboxAddress("Admin", _smtpUser));
+          message.To.Add(new MailboxAddress("Admin", "sajidabbas6024@gmail.com"));
+
             message.Subject = $"🔔 New Order #{order.Id}";
 
             message.Body = new TextPart("html")
