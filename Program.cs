@@ -30,7 +30,7 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
 {
     options.Password.RequireDigit = true;
     options.Password.RequiredLength = 6;
-    options.Password.RequireNonAlphanomeric = false;
+    options.Password.RequireNonAlphanumeric = false;
     options.Password.RequireUppercase = false;
     options.Password.RequireLowercase = false;
 })
@@ -83,9 +83,10 @@ builder.Services.Configure<EmailSettings>(options =>
 });
 
 // ===============================
-// EMAIL SERVICE (Direct - No Background)
+// EMAIL SERVICE + BACKGROUND SERVICE
 // ===============================
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddHostedService<BackgroundEmailService>();
 
 // ===============================
 // BUILD APP
