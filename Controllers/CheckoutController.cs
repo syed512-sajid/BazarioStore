@@ -11,25 +11,18 @@ namespace EcommerceStore.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<CheckoutController> _logger;
-        private readonly IEmailService _emailService;
 
         public CheckoutController(
             ApplicationDbContext context,
-            ILogger<CheckoutController> logger,
-            IEmailService emailService)
+            ILogger<CheckoutController> logger)
         {
             _context = context;
             _logger = logger;
-            _emailService = emailService;
         }
 
-        // ============================
-        // CHECKOUT PAGE
-        // ============================
         public IActionResult Index()
         {
             var cartJson = HttpContext.Session.GetString("Cart");
-
             var cart = string.IsNullOrEmpty(cartJson)
                 ? new List<CartItem>()
                 : JsonConvert.DeserializeObject<List<CartItem>>(cartJson) ?? new List<CartItem>();
@@ -44,9 +37,6 @@ namespace EcommerceStore.Controllers
             return View(cart);
         }
 
-        // ============================
-        // PLACE ORDER (FINAL FIX)
-        // ============================
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> PlaceOrder(
@@ -59,44 +49,25 @@ namespace EcommerceStore.Controllers
         {
             try
             {
-                _logger.LogInformation("📝 PlaceOrder started for {Customer}", customerName);
+                _logger.LogInformation("📝 PlaceOrder started for {CustomerName}", customerName);
 
-                // ----------------------------
-                // VALIDATION
-                // ----------------------------
                 if (string.IsNullOrWhiteSpace(customerName) ||
                     string.IsNullOrWhiteSpace(email) ||
                     string.IsNullOrWhiteSpace(address) ||
                     string.IsNullOrWhiteSpace(phone) ||
                     string.IsNullOrWhiteSpace(paymentMethod))
                 {
-                    return Json(new
-                    {
-                        success = false,
-                        message = "All required fields must be filled."
-                    });
+                    return Json(new { success = false, message = "All required fields must be filled." });
                 }
 
-                // ----------------------------
-                // CART FROM SESSION
-                // ----------------------------
                 var cartJson = HttpContext.Session.GetString("Cart");
                 var cart = string.IsNullOrEmpty(cartJson)
                     ? new List<CartItem>()
                     : JsonConvert.DeserializeObject<List<CartItem>>(cartJson) ?? new List<CartItem>();
 
                 if (!cart.Any())
-                {
-                    return Json(new
-                    {
-                        success = false,
-                        message = "Your cart is empty!"
-                    });
-                }
+                    return Json(new { success = false, message = "Your cart is empty!" });
 
-                // ----------------------------
-                // CREATE ORDER
-                // ----------------------------
                 var order = new Order
                 {
                     CustomerName = customerName,
@@ -105,7 +76,7 @@ namespace EcommerceStore.Controllers
                     Landmark = landmark ?? "",
                     Phone = phone,
                     PaymentMethod = paymentMethod,
-                    OrderDate = DateTime.UtcNow,
+                    OrderDate = DateTime.Now,
                     TotalAmount = cart.Sum(c => c.Price * c.Quantity),
                     Status = "Pending",
                     TrackingId = GenerateTrackingId(),
@@ -123,50 +94,28 @@ namespace EcommerceStore.Controllers
 
                 _logger.LogInformation("✅ Order #{OrderId} saved successfully", order.Id);
 
-                // ----------------------------
-                // SEND EMAILS (NO Task.Run)
-                // ----------------------------
-                try
-                {
-                    _logger.LogInformation("📧 Sending emails for Order #{OrderId}", order.Id);
+                // Queue email - non-blocking
+                BackgroundEmailService.QueueEmail(order, cart);
+                _logger.LogInformation("📧 Order #{OrderId} queued for email", order.Id);
 
-                    await _emailService.SendOrderConfirmationAsync(order, cart);
-                    await _emailService.SendAdminNotificationAsync(order, cart);
-
-                    _logger.LogInformation("✅ Emails sent for Order #{OrderId}", order.Id);
-                }
-                catch (Exception mailEx)
-                {
-                    _logger.LogError(mailEx, "❌ Email sending failed for Order #{OrderId}", order.Id);
-                }
-
-                // ----------------------------
-                // CLEAR CART
-                // ----------------------------
                 HttpContext.Session.Remove("Cart");
 
-                return Json(new
-                {
-                    success = true,
-                    orderId = order.Id,
-                    message = "Order placed successfully."
-                });
+                return Json(new { success = true, orderId = order.Id, message = "Order placed successfully!" });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ PlaceOrder failed");
-
-                return Json(new
-                {
-                    success = false,
-                    message = "An error occurred while placing your order."
-                });
+                _logger.LogError(ex, "❌ Error placing order");
+                return Json(new { success = false, message = "An error occurred. Please try again." });
             }
         }
 
-        // ============================
-        // ORDER CONFIRMATION PAGE
-        // ============================
+        private string GenerateTrackingId()
+        {
+            var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            var random = new Random();
+            return $"BAZ{new string(Enumerable.Repeat(chars, 8).Select(s => s[random.Next(s.Length)]).ToArray())}";
+        }
+
         public async Task<IActionResult> OrderConfirmation(int id)
         {
             var order = await _context.Orders
@@ -174,40 +123,15 @@ namespace EcommerceStore.Controllers
                 .ThenInclude(oi => oi.Product)
                 .FirstOrDefaultAsync(o => o.Id == id);
 
-            if (order == null)
-                return NotFound();
-
-            return View(order);
+            return order == null ? NotFound() : View(order);
         }
 
-        // ============================
-        // TRACK ORDER
-        // ============================
         [HttpGet]
         public async Task<IActionResult> TrackOrder(string trackingId)
         {
-            if (string.IsNullOrWhiteSpace(trackingId))
-                return View();
-
-            var order = await _context.Orders
-                .FirstOrDefaultAsync(o => o.TrackingId == trackingId);
-
+            if (string.IsNullOrEmpty(trackingId)) return View();
+            var order = await _context.Orders.FirstOrDefaultAsync(o => o.TrackingId == trackingId);
             return View(order);
-        }
-
-        // ============================
-        // HELPER
-        // ============================
-        private string GenerateTrackingId()
-        {
-            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-            var random = new Random();
-
-            return "BAZ" + new string(
-                Enumerable.Repeat(chars, 8)
-                    .Select(s => s[random.Next(s.Length)])
-                    .ToArray()
-            );
         }
     }
 }
