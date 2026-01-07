@@ -7,12 +7,15 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 // ===============================
-// DATABASE - SQLite
+// DATABASE - SQLite (Railway Safe)
 // ===============================
 var dbPath = "/data";
 if (!Directory.Exists(dbPath)) Directory.CreateDirectory(dbPath);
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-                       ?? "Data Source=/data/Ecommerce.db";
+
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? "Data Source=/data/Ecommerce.db";
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(connectionString));
 
@@ -46,28 +49,30 @@ builder.Services.AddSession(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
 });
+
 // ===============================
-// DATA PROTECTION (Fix Session Cookie Errors)
+// DATA PROTECTION (SESSION COOKIE FIX)
 // ===============================
 var dataProtectionPath = Path.Combine(dbPath, "DataProtection-Keys");
-if (!Directory.Exists(dataProtectionPath)) Directory.CreateDirectory(dataProtectionPath);
+if (!Directory.Exists(dataProtectionPath))
+    Directory.CreateDirectory(dataProtectionPath);
 
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionPath))
     .SetApplicationName("EcommerceStore");
+
 // ===============================
-// CONTROLLERS + VIEWS
+// MVC
 // ===============================
 builder.Services.AddControllersWithViews();
 
 // ===============================
-// EMAIL SETTINGS
+// ✅ EMAIL SERVICES (RESEND ONLY)
 // ===============================
-
-
-// ===============================
-// EMAIL SERVICES (NEW)
-// ===============================
+// ⚠️ IMPORTANT:
+// - EmailService = Resend implementation
+// - NO MailKit
+// - NO SMTP
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddHostedService<BackgroundEmailService>();
 
@@ -77,11 +82,12 @@ builder.Services.AddHostedService<BackgroundEmailService>();
 var app = builder.Build();
 
 // ===============================
-// APPLY MIGRATIONS AND SEED ADMIN USER
+// APPLY MIGRATIONS + SEED ADMIN
 // ===============================
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+
     var db = services.GetRequiredService<ApplicationDbContext>();
     await db.Database.MigrateAsync();
 
@@ -93,8 +99,8 @@ using (var scope = app.Services.CreateScope())
 
     string adminEmail = "sajidabbas6024@gmail.com";
     string adminPassword = "sajid@6024";
-    var adminUser = await userManager.FindByEmailAsync(adminEmail);
 
+    var adminUser = await userManager.FindByEmailAsync(adminEmail);
     if (adminUser == null)
     {
         adminUser = new IdentityUser
@@ -103,8 +109,10 @@ using (var scope = app.Services.CreateScope())
             Email = adminEmail,
             EmailConfirmed = true
         };
+
         var result = await userManager.CreateAsync(adminUser, adminPassword);
-        if (result.Succeeded) await userManager.AddToRoleAsync(adminUser, "Admin");
+        if (result.Succeeded)
+            await userManager.AddToRoleAsync(adminUser, "Admin");
     }
 }
 
@@ -125,7 +133,7 @@ app.UseAuthorization();
 app.UseSession();
 
 // ===============================
-// DEFAULT ROUTE
+// ROUTES
 // ===============================
 app.MapControllerRoute(
     name: "default",
