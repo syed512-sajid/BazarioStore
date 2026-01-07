@@ -33,6 +33,9 @@ namespace EcommerceStore.Services
         {
             _logger.LogInformation("🚀 Email Service started");
 
+            // Don't start processing until application is fully started
+            await Task.Delay(3000, stoppingToken);
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
@@ -47,11 +50,16 @@ namespace EcommerceStore.Services
                         {
                             using var scope = _serviceScopeFactory.CreateScope();
                             var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
-
+                            
                             await emailService.SendOrderConfirmationAsync(item.Order, item.Cart);
                             await emailService.SendAdminNotificationAsync(item.Order, item.Cart);
-
+                            
                             _logger.LogInformation("✅ Order #{OrderId} emails sent", item.Order.Id);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            _logger.LogWarning("⚠️ Email sending cancelled for Order #{OrderId}", item.Order.Id);
+                            throw; // Re-throw to stop the service
                         }
                         catch (Exception ex)
                         {
@@ -72,8 +80,14 @@ namespace EcommerceStore.Services
                     }
                     else
                     {
+                        // Wait when queue is empty
                         await Task.Delay(2000, stoppingToken);
                     }
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogInformation("🛑 Email service cancellation requested");
+                    break; // Exit gracefully
                 }
                 catch (Exception ex)
                 {
@@ -82,7 +96,7 @@ namespace EcommerceStore.Services
                 }
             }
 
-            _logger.LogInformation("⛔ Email Service stopped");
+            _logger.LogInformation("⛔ Email Service stopped gracefully");
         }
     }
 }
