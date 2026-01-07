@@ -63,7 +63,7 @@ builder.Services.AddControllersWithViews();
 // ===============================
 // EMAIL SETTINGS
 // ===============================
-builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+
 
 // ===============================
 // EMAIL SERVICES (NEW)
