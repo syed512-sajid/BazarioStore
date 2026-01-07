@@ -1,4 +1,7 @@
 using EcommerceStore.Models;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 
 namespace EcommerceStore.Services
@@ -31,72 +34,41 @@ namespace EcommerceStore.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("🚀 Email Service started");
-
-            // Don't start processing until application is fully started
+            _logger.LogInformation("🚀 Background Email Service started");
             await Task.Delay(3000, stoppingToken);
 
             while (!stoppingToken.IsCancellationRequested)
             {
-                try
+                if (_emailQueue.TryDequeue(out var item))
                 {
-                    if (_emailQueue.TryDequeue(out var item))
+                    item.Attempts++;
+                    _logger.LogInformation("📬 Processing Order #{OrderId} (Attempt {Attempt}/3)", item.Order.Id, item.Attempts);
+
+                    try
                     {
-                        item.Attempts++;
-                        _logger.LogInformation("📬 Processing Order #{OrderId} (Attempt {Attempt}/3)", 
-                            item.Order.Id, item.Attempts);
+                        using var scope = _serviceScopeFactory.CreateScope();
+                        var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
 
-                        try
-                        {
-                            using var scope = _serviceScopeFactory.CreateScope();
-                            var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
-                            
-                            await emailService.SendOrderConfirmationAsync(item.Order, item.Cart);
-                            await emailService.SendAdminNotificationAsync(item.Order, item.Cart);
-                            
-                            _logger.LogInformation("✅ Order #{OrderId} emails sent", item.Order.Id);
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            _logger.LogWarning("⚠️ Email sending cancelled for Order #{OrderId}", item.Order.Id);
-                            throw; // Re-throw to stop the service
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "❌ Order #{OrderId} failed (Attempt {Attempt})", 
-                                item.Order.Id, item.Attempts);
+                        await emailService.SendOrderConfirmationAsync(item.Order, item.Cart);
+                        await emailService.SendAdminNotificationAsync(item.Order, item.Cart);
 
-                            if (item.Attempts < 3)
-                            {
-                                await Task.Delay(5000, stoppingToken);
-                                _emailQueue.Enqueue(item); // Retry
-                                _logger.LogWarning("🔄 Retrying Order #{OrderId}", item.Order.Id);
-                            }
-                            else
-                            {
-                                _logger.LogError("❌ Order #{OrderId} FAILED after 3 attempts", item.Order.Id);
-                            }
+                        _logger.LogInformation("✅ Order #{OrderId} emails sent", item.Order.Id);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "❌ Order #{OrderId} failed (Attempt {Attempt})", item.Order.Id, item.Attempts);
+                        if (item.Attempts < 3)
+                        {
+                            await Task.Delay(5000, stoppingToken);
+                            _emailQueue.Enqueue(item); // retry
                         }
                     }
-                    else
-                    {
-                        // Wait when queue is empty
-                        await Task.Delay(2000, stoppingToken);
-                    }
                 }
-                catch (OperationCanceledException)
+                else
                 {
-                    _logger.LogInformation("🛑 Email service cancellation requested");
-                    break; // Exit gracefully
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "❌ Email service error");
-                    await Task.Delay(5000, stoppingToken);
+                    await Task.Delay(2000, stoppingToken);
                 }
             }
-
-            _logger.LogInformation("⛔ Email Service stopped gracefully");
         }
     }
 }
