@@ -46,7 +46,15 @@ builder.Services.AddSession(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
 });
+// ===============================
+// DATA PROTECTION (Fix Session Cookie Errors)
+// ===============================
+var dataProtectionPath = Path.Combine(dbPath, "DataProtection-Keys");
+if (!Directory.Exists(dataProtectionPath)) Directory.CreateDirectory(dataProtectionPath);
 
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionPath))
+    .SetApplicationName("EcommerceStore");
 // ===============================
 // CONTROLLERS + VIEWS
 // ===============================
