@@ -1,4 +1,3 @@
-
 using EcommerceStore.Models;
 using Newtonsoft.Json;
 using System.Text;
@@ -15,26 +14,23 @@ namespace EcommerceStore.Services
             _logger = logger;
             _http = new HttpClient();
 
-            // Get API key from environment variable
             var apiKey = Environment.GetEnvironmentVariable("RESEND_API_KEY");
             if (string.IsNullOrEmpty(apiKey))
                 _logger.LogWarning("Resend API Key not set in environment variables.");
 
             _http.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
+
+            _logger.LogInformation("📧 EmailService initialized using Resend");
         }
 
         public async Task SendOrderConfirmationAsync(Order order, List<CartItem> cart)
         {
-            await SendEmail(order.Email,
-                $"✅ Order Confirmed #{order.Id} - BAZARIO",
-                BuildCustomerEmailBody(order, cart));
+            await SendEmail(order.Email, $"✅ Order Confirmed #{order.Id} - BAZARIO", BuildCustomerEmailBody(order, cart));
         }
 
         public async Task SendAdminNotificationAsync(Order order, List<CartItem> cart)
         {
-            await SendEmail("sajidabbas6024@gmail.com",
-                $"🔔 New Order #{order.Id}",
-                BuildAdminEmailBody(order, cart));
+            await SendEmail("sajidabbas6024@gmail.com", $"🔔 New Order #{order.Id}", BuildAdminEmailBody(order, cart));
         }
 
         private async Task SendEmail(string to, string subject, string html)
@@ -60,7 +56,6 @@ namespace EcommerceStore.Services
             _logger.LogInformation("✅ Email sent to {Email} via Resend", to);
         }
 
-        // ===== Email HTML Builders =====
         private string BuildCustomerEmailBody(Order order, List<CartItem> cart)
         {
             return $"<h2>Order #{order.Id}</h2><p>Thank you for shopping with BAZARIO!</p>";
