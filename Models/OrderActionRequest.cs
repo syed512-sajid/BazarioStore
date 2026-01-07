@@ -1,4 +1,4 @@
-﻿namespace EcommerceStore.Models
+namespace EcommerceStore.Models
 {
     public class OrderActionRequest
     {
