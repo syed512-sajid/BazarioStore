@@ -1,47 +1,34 @@
 using EcommerceStore.Data;
+using EcommerceStore.Models;
 using EcommerceStore.Services;
-using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ===============================
-// LOGGING
-// ===============================
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-builder.Logging.SetMinimumLevel(LogLevel.Information);
-
-// ===============================
-// DATA DIRECTORIES (Railway)
-// ===============================
-Directory.CreateDirectory("/data");
-Directory.CreateDirectory("/data/dataprotection-keys");
-
-// ===============================
 // DATABASE - SQLite
 // ===============================
-var connectionString =
-    builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? "Data Source=/data/Ecommerce.db";
-
+var dbPath = "/data";
+if (!Directory.Exists(dbPath)) Directory.CreateDirectory(dbPath);
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                       ?? "Data Source=/data/Ecommerce.db";
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite(connectionString));
 
 // ===============================
-// DATA PROTECTION (🔥 FIX)
-// ===============================
-builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo("/data/dataprotection-keys"))
-    .SetApplicationName("BazarioApp");
-
-// ===============================
 // IDENTITY
 // ===============================
-builder.Services.AddIdentity<IdentityUser, IdentityRole>()
-    .AddEntityFrameworkStores<ApplicationDbContext>()
-    .AddDefaultTokenProviders();
+builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
+{
+    options.Password.RequireDigit = true;
+    options.Password.RequiredLength = 6;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequireLowercase = false;
+})
+.AddEntityFrameworkStores<ApplicationDbContext>()
+.AddDefaultTokenProviders();
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -61,24 +48,56 @@ builder.Services.AddSession(options =>
 });
 
 // ===============================
-// MVC
+// CONTROLLERS + VIEWS
 // ===============================
 builder.Services.AddControllersWithViews();
 
 // ===============================
-// EMAIL SERVICE
+// EMAIL SETTINGS
+// ===============================
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+
+// ===============================
+// EMAIL SERVICES (NEW)
 // ===============================
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddHostedService<BackgroundEmailService>();
 
+// ===============================
+// BUILD APP
+// ===============================
 var app = builder.Build();
 
 // ===============================
-// MIGRATION
+// APPLY MIGRATIONS AND SEED ADMIN USER
 // ===============================
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var services = scope.ServiceProvider;
+    var db = services.GetRequiredService<ApplicationDbContext>();
     await db.Database.MigrateAsync();
+
+    var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
+    var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+
+    if (!await roleManager.RoleExistsAsync("Admin"))
+        await roleManager.CreateAsync(new IdentityRole("Admin"));
+
+    string adminEmail = "sajidabbas6024@gmail.com";
+    string adminPassword = "sajid@6024";
+    var adminUser = await userManager.FindByEmailAsync(adminEmail);
+
+    if (adminUser == null)
+    {
+        adminUser = new IdentityUser
+        {
+            UserName = adminEmail,
+            Email = adminEmail,
+            EmailConfirmed = true
+        };
+        var result = await userManager.CreateAsync(adminUser, adminPassword);
+        if (result.Succeeded) await userManager.AddToRoleAsync(adminUser, "Admin");
+    }
 }
 
 // ===============================
@@ -90,14 +109,25 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
-app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseSession();
 
+// ===============================
+// DEFAULT ROUTE
+// ===============================
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller=Home}/{action=Index}/{id?}"
+);
+
+// ===============================
+// RAILWAY PORT
+// ===============================
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+app.Urls.Add($"http://0.0.0.0:{port}");
 
 app.Run();
