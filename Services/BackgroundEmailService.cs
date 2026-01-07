@@ -1,4 +1,3 @@
-using EcommerceStore.Models;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -19,9 +18,7 @@ namespace EcommerceStore.Services
         private readonly IServiceScopeFactory _serviceScopeFactory;
         private static readonly ConcurrentQueue<EmailQueueItem> _emailQueue = new();
 
-        public BackgroundEmailService(
-            ILogger<BackgroundEmailService> logger,
-            IServiceScopeFactory serviceScopeFactory)
+        public BackgroundEmailService(ILogger<BackgroundEmailService> logger, IServiceScopeFactory serviceScopeFactory)
         {
             _logger = logger;
             _serviceScopeFactory = serviceScopeFactory;
