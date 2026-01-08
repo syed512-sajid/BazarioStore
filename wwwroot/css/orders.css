@@ -1,0 +1,285 @@
+﻿/* orders.css */
+
+/*.avatar-circle {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+}
+
+    .avatar-circle i {
+        color: white !important;
+    }
+
+.list-group-item {
+    border: none;
+    border-radius: 8px !important;
+    margin-bottom: 5px;
+}
+
+    .list-group-item.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+    }
+
+.card {
+    border: none;
+    border-radius: 12px;
+}
+
+.order-card {
+    transition: all 0.3s;
+    border: 1px solid #e0e0e0;
+}
+
+    .order-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.1) !important;
+    }
+
+.order-icon {
+    width: 60px;
+    height: 60px;
+    background: #f8f9fa;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.badge {
+    font-size: 13px;
+    font-weight: 600;
+}*/
+/* ========================================
+   MY ORDERS PAGE STYLES
+   ======================================== */
+
+/* Order Card Styling */
+.order-card {
+    border: none;
+    border-radius: 12px;
+    transition: all 0.3s;
+    overflow: hidden;
+}
+
+    .order-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    }
+
+    .order-card .card-body {
+        padding: 20px;
+    }
+
+/* Order Icon */
+.order-icon {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    color: white;
+}
+
+/* Status Badges */
+.badge {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.bg-warning {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+    color: white !important;
+}
+
+.bg-info {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+    color: white !important;
+}
+
+.bg-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+}
+
+.bg-success {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%) !important;
+    color: white !important;
+}
+
+.bg-danger {
+    background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%) !important;
+    color: white !important;
+}
+
+.bg-secondary {
+    background: linear-gradient(135deg, #bdc3c7 0%, #2c3e50 100%) !important;
+    color: white !important;
+}
+
+/* Empty State */
+.card .text-center {
+    padding: 60px 20px;
+}
+
+    .card .text-center i {
+        color: #ddd;
+        margin-bottom: 20px;
+    }
+
+    .card .text-center h4 {
+        color: #666;
+        font-weight: 600;
+    }
+
+    .card .text-center p {
+        color: #999;
+    }
+
+/* Button Styling */
+.btn-outline-primary {
+    border-radius: 8px;
+    padding: 8px 20px;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+    .btn-outline-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 12px 30px;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+
+/* Avatar Circle (Sidebar) */
+.avatar-circle {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+}
+
+    .avatar-circle i {
+        color: white !important;
+    }
+
+/* Sidebar List Items */
+.list-group-item {
+    border: none;
+    border-radius: 8px !important;
+    margin-bottom: 5px;
+    transition: all 0.3s;
+}
+
+    .list-group-item:hover {
+        background: #f8f9fa;
+        transform: translateX(5px);
+    }
+
+    .list-group-item.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+    }
+
+        .list-group-item.active:hover {
+            transform: translateX(0);
+        }
+
+/* Card Shadow */
+.shadow-sm {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .order-card .card-body {
+        padding: 15px;
+    }
+
+    .order-icon {
+        width: 40px;
+        height: 40px;
+    }
+
+        .order-icon i {
+            font-size: 1.2rem !important;
+        }
+
+    .badge {
+        font-size: 12px;
+        padding: 6px 12px;
+    }
+
+    h5 {
+        font-size: 1rem;
+    }
+
+    .btn-outline-primary {
+        font-size: 14px;
+        padding: 6px 15px;
+    }
+}
+
+/* Animation */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.order-card {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+    /* Stagger animation for multiple cards */
+    .order-card:nth-child(1) {
+        animation-delay: 0.1s;
+    }
+
+    .order-card:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .order-card:nth-child(3) {
+        animation-delay: 0.3s;
+    }
+
+    .order-card:nth-child(4) {
+        animation-delay: 0.4s;
+    }
+
+    .order-card:nth-child(5) {
+        animation-delay: 0.5s;
+    }

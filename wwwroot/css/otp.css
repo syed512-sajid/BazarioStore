@@ -1,0 +1,261 @@
+﻿/* OTP Verification Page Styles */
+
+.otp-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.otp-modal {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    padding: 0;
+    max-width: 480px;
+    width: 90%;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.otp-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 20px 20px 0 0;
+    text-align: center;
+}
+
+    .otp-header i {
+        font-size: 48px;
+        margin-bottom: 15px;
+        animation: pulse 2s infinite;
+    }
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.otp-header h3 {
+    margin: 0 0 10px 0;
+    font-weight: 700;
+    font-size: 24px;
+}
+
+.otp-header p {
+    margin: 0;
+    opacity: 0.9;
+    font-size: 14px;
+}
+
+.otp-body {
+    padding: 40px 30px 30px;
+}
+
+.otp-inputs {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 25px 0;
+}
+
+.otp-input {
+    width: 50px;
+    height: 55px;
+    text-align: center;
+    font-size: 24px;
+    font-weight: 700;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    transition: all 0.3s;
+    background: #f8f9fa;
+}
+
+    .otp-input:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        outline: none;
+        transform: scale(1.05);
+        background: white;
+    }
+
+    .otp-input:not(:placeholder-shown) {
+        background: white;
+        border-color: #667eea;
+    }
+
+.timer {
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+    margin: 15px 0;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+    .timer strong {
+        color: #667eea;
+        font-size: 16px;
+    }
+
+    .timer.expired {
+        background: #fff5f5;
+        color: #dc3545;
+        font-weight: 600;
+    }
+
+        .timer.expired strong {
+            color: #dc3545;
+        }
+
+.btn-verify {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 14px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 16px;
+    width: 100%;
+    transition: all 0.3s;
+    margin-top: 10px;
+    cursor: pointer;
+}
+
+    .btn-verify:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        color: white;
+    }
+
+    .btn-verify:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+.btn-cancel {
+    background: white;
+    color: #666;
+    border: 2px solid #e0e0e0;
+    padding: 12px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 14px;
+    width: 100%;
+    transition: all 0.3s;
+    margin-top: 10px;
+    display: inline-block;
+    text-align: center;
+    text-decoration: none;
+}
+
+    .btn-cancel:hover {
+        border-color: #dc3545;
+        color: #dc3545;
+        background: #fff5f5;
+        text-decoration: none;
+    }
+
+.resend-link {
+    text-align: center;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e0e0e0;
+    font-size: 14px;
+    color: #666;
+}
+
+    .resend-link a {
+        color: #667eea;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+        .resend-link a:hover:not(.disabled) {
+            text-decoration: underline;
+            color: #764ba2;
+        }
+
+        .resend-link a.disabled {
+            color: #ccc;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+/* Alert Animations */
+.alert {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 576px) {
+    .otp-modal {
+        width: 95%;
+        margin: 10px;
+    }
+
+    .otp-header {
+        padding: 25px 20px;
+    }
+
+        .otp-header i {
+            font-size: 40px;
+        }
+
+        .otp-header h3 {
+            font-size: 20px;
+        }
+
+    .otp-body {
+        padding: 30px 20px 25px;
+    }
+
+    .otp-input {
+        width: 45px;
+        height: 50px;
+        font-size: 20px;
+    }
+
+    .otp-inputs {
+        gap: 8px;
+    }
+}
