@@ -1,0 +1,86 @@
+﻿@{
+    ViewData["Title"] = "Verify OTP";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Verify OTP - BAZARIO</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" />
+    <link rel="stylesheet" href="~/css/otp.css" />
+</head>
+<body>
+    <div class="otp-overlay">
+        <div class="otp-modal">
+            <div class="otp-header">
+                <i class="fas fa-envelope-open-text"></i>
+                <h3>Verify Your Identity</h3>
+                <p>Enter the 6-digit code sent to your email</p>
+            </div>
+
+            <div class="otp-body">
+                @if (TempData["Error"] != null)
+                {
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        @TempData["Error"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                }
+
+                @if (TempData["Success"] != null)
+                {
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="fas fa-check-circle me-2"></i>
+                        @TempData["Success"]
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                }
+
+                <form method="post" id="otpForm">
+                    <div class="otp-inputs">
+                        <input type="text" class="otp-input" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off" />
+                        <input type="text" class="otp-input" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off" />
+                        <input type="text" class="otp-input" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off" />
+                        <input type="text" class="otp-input" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off" />
+                        <input type="text" class="otp-input" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off" />
+                        <input type="text" class="otp-input" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="off" />
+                    </div>
+
+                    <input type="hidden" name="otp" id="otpValue" />
+
+                    <div class="timer" id="timer">
+                        <i class="fas fa-clock me-1"></i>
+                        Code expires in: <strong><span id="timeLeft">5:00</span></strong>
+                    </div>
+
+                    <button type="submit" class="btn btn-verify" id="verifyBtn">
+                        <i class="fas fa-check-circle me-2"></i>Verify OTP
+                    </button>
+
+                    <a href="@Url.Action("Login", "Account")" class="btn btn-cancel">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </a>
+                </form>
+
+                <div class="resend-link">
+                    Didn't receive the code?
+                    <a href="#" id="resendLink" class="disabled">Resend OTP (<span id="resendTimer">60</span>s)</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/otp.js"></script>
+    <script>
+        // Pass Razor values to JavaScript
+        window.resendOtpUrl = '@Url.Action("ResendOtp", "Account")';
+    </script>
+</body>
+</html>
