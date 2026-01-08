@@ -1,0 +1,190 @@
+﻿@model EcommerceStore.Models.Order
+@{
+    ViewData["Title"] = "Order Details";
+}
+
+<div class="container my-5">
+    <div class="mb-4">
+        <a asp-action="MyOrders" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Orders
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Order Info Card -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Order #@Model.Id</h5>
+                        <span class="badge bg-@GetStatusColor(Model.Status) px-3 py-2">
+                            @Model.Status
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <p class="text-muted mb-1">Order Date</p>
+                            <p class="fw-bold">@Model.OrderDate.ToString("MMM dd, yyyy")</p>
+                        </div>
+                        <div class="col-6">
+                            <p class="text-muted mb-1">Order ID</p>
+                            <p class="fw-bold">#@Model.Id</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Items -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-shopping-cart me-2"></i>Order Items</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Product</th>
+                                    <th class="text-center">Quantity</th>
+                                    <th class="text-end">Price</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.OrderItems)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                @{
+                                                    var imageUrl = item.Product.Images.FirstOrDefault()?.ImageUrl ?? "/images/default-product.png";
+                                                }
+                                                <img src="@imageUrl" alt="@item.Product.Name" class="rounded me-3 product-img">
+                                                <div>
+                                                    <h6 class="mb-0">@item.Product.Name</h6>
+                                                    <small class="text-muted">@item.Product.Category</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="text-center align-middle">
+                                            <span class="badge bg-secondary">@item.Quantity</span>
+                                        </td>
+                                        <td class="text-end align-middle">
+                                            Rs. @item.Price.ToString("N0")
+                                        </td>
+                                        <td class="text-end align-middle fw-bold">
+                                            Rs. @((item.Price * item.Quantity).ToString("N0"))
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Customer Info -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-user me-2"></i>Customer Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="text-muted mb-1">Name</p>
+                            <p class="fw-bold">@Model.CustomerName</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="text-muted mb-1">Email</p>
+                            <p class="fw-bold">@Model.Email</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="text-muted mb-1">Phone</p>
+                            <p class="fw-bold">@(Model.Phone ?? "N/A")</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="text-muted mb-1">Address</p>
+                            <p class="fw-bold">@(Model.Address ?? "N/A")</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Order Summary -->
+        <div class="col-md-4">
+            <div class="card shadow-sm sticky-top" style="top: 20px;">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-file-invoice-dollar me-2"></i>Order Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Subtotal</span>
+                        <span class="fw-bold">Rs. @Model.TotalAmount.ToString("N0")</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Shipping</span>
+                        <span class="text-success fw-bold">Free</span>
+                    </div>
+                    <hr>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span class="fw-bold h5 mb-0">Total</span>
+                        <span class="fw-bold h5 mb-0 text-primary">Rs. @Model.TotalAmount.ToString("N0")</span>
+                    </div>
+
+                    <!-- Order Status Timeline -->
+                    <div class="mt-4">
+                        <h6 class="mb-3">Order Status</h6>
+                        <div class="timeline">
+                            <div class="timeline-item @(IsStatusActive("Pending"))">
+                                <i class="fas fa-clock"></i>
+                                <span>Pending</span>
+                            </div>
+                            <div class="timeline-item @(IsStatusActive("Processing"))">
+                                <i class="fas fa-cog"></i>
+                                <span>Processing</span>
+                            </div>
+                            <div class="timeline-item @(IsStatusActive("Shipped"))">
+                                <i class="fas fa-truck"></i>
+                                <span>Shipped</span>
+                            </div>
+                            <div class="timeline-item @(IsStatusActive("Delivered"))">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Delivered</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/order-details.js"></script>
+}
+
+    @functions {
+    string GetStatusColor(string status)
+    {
+        return status switch
+        {
+            "Pending" => "warning",
+            "Processing" => "info",
+            "Shipped" => "primary",
+            "Delivered" => "success",
+            "Cancelled" => "danger",
+            _ => "secondary"
+        };
+    }
+
+    string IsStatusActive(string status)
+    {
+        var statusOrder = new[] { "Pending", "Processing", "Shipped", "Delivered" };
+        var currentIndex = Array.IndexOf(statusOrder, Model.Status);
+        var checkIndex = Array.IndexOf(statusOrder, status);
+        return checkIndex <= currentIndex ? "active" : "";
+    }
+}

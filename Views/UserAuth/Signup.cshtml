@@ -1,0 +1,103 @@
+﻿@{
+    ViewData["Title"] = "Sign Up";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sign Up - BAZARIO</title>
+
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" />
+    <link rel="stylesheet" href="~/css/signup.css" />
+</head>
+<body>
+    <div class="auth-card">
+        <div class="auth-header">
+            <i class="fas fa-user-plus"></i>
+            <h2>Create Account</h2>
+            <p class="mb-0" style="opacity: 0.9;">Join BAZARIO today!</p>
+        </div>
+
+        <div class="auth-body">
+            @if (TempData["Error"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show">
+                    <i class="fas fa-exclamation-circle me-2"></i>
+                    @TempData["Error"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+
+            <form method="post" asp-action="Signup" asp-controller="UserAuth">
+                <div class="mb-3">
+                    <label class="form-label">Full Name</label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fas fa-user text-muted"></i>
+                        </span>
+                        <input type="text" name="name" class="form-control" placeholder="Enter your name" required autofocus />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Email Address</label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fas fa-envelope text-muted"></i>
+                        </span>
+                        <input type="email" name="email" class="form-control" placeholder="Enter your email" required />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fas fa-lock text-muted"></i>
+                        </span>
+                        <input type="password" name="password" id="password" class="form-control" placeholder="Create a password" required minlength="6" />
+                    </div>
+                    <small class="text-muted">At least 6 characters</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Confirm Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fas fa-lock text-muted"></i>
+                        </span>
+                        <input type="password" name="confirmPassword" id="confirmPassword" class="form-control" placeholder="Confirm your password" required />
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-signup">
+                    <i class="fas fa-user-plus me-2"></i>Create Account
+                </button>
+            </form>
+
+            <div class="divider"><span>OR</span></div>
+
+            <div class="signin-link">
+                Already have an account?
+                <a asp-action="Signin" asp-controller="UserAuth">Sign In</a>
+            </div>
+
+            <div class="text-center mt-3">
+                <a asp-controller="Home" asp-action="Index" class="btn-home">
+                    <i class="fas fa-home"></i>
+                    <span>Back to Store</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/signup.js"></script>
+</body>
+</html>
