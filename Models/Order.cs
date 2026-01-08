@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace EcommerceStore.Models
 {
@@ -44,7 +44,8 @@ namespace EcommerceStore.Models
         // Unique Tracking ID
         [Required]
         public string TrackingId { get; set; } = "";
-
+        public int CustomerId { get; set; }        // <--- add this
+        public Customer Customer { get; set; }
         public virtual ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
     }
 
