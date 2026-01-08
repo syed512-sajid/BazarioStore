@@ -1,0 +1,120 @@
+@model IEnumerable<EcommerceStore.Models.Order>
+@{
+    ViewData["Title"] = "My Orders";
+}
+
+<link rel="stylesheet" href="~/css/orders.css" />
+
+<div class="container my-5">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <div class="avatar-circle mb-3">
+                        <i class="fas fa-user fa-3x text-primary"></i>
+                    </div>
+                    <h5 class="mb-1">@ViewBag.CustomerName</h5>
+                    <p class="text-muted small mb-3">Customer</p>
+                    <hr>
+                    <div class="list-group list-group-flush">
+                        <a asp-action="Dashboard" class="list-group-item list-group-item-action">
+                            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action active">
+                            <i class="fas fa-shopping-bag me-2"></i>My Orders
+                        </a>
+                        <a asp-action="Dashboard" class="list-group-item list-group-item-action">
+                            <i class="fas fa-user-edit me-2"></i>Edit Profile
+                        </a>
+                        <form method="post" asp-action="Logout" asp-controller="UserAuth" class="d-inline">
+                            <button type="submit" class="list-group-item list-group-item-action text-danger border-0 w-100 text-start">
+                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Orders List -->
+        <div class="col-md-9">
+            <h2 class="mb-4"><i class="fas fa-shopping-bag me-2"></i>My Orders</h2>
+
+            @if (Model != null && Model.Any())
+            {
+                <div class="row g-3">
+                    @foreach (var order in Model)
+                    {
+                        <div class="col-12">
+                            <div class="card shadow-sm order-card">
+                                <div class="card-body">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-8">
+                                            <div class="d-flex align-items-start">
+                                                <div class="order-icon me-3">
+                                                    <i class="fas fa-box fa-2x text-primary"></i>
+                                                </div>
+                                                <div>
+                                                    <h5 class="mb-1">Order #@order.Id</h5>
+                                                    <p class="text-muted mb-2">
+                                                        <i class="far fa-calendar me-1"></i>
+                                                        @order.OrderDate.ToString("MMM dd, yyyy")
+                                                    </p>
+                                                    <p class="mb-2">
+                                                        <strong>Items:</strong> @order.OrderItems.Count() item(s)
+                                                    </p>
+                                                    <p class="mb-0">
+                                                        <strong>Total:</strong>
+                                                        <span class="text-success fw-bold">Rs. @order.TotalAmount.ToString("N0")</span>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 text-end">
+                                            <span class="badge bg-@GetStatusColor(order.Status) mb-3 px-3 py-2">
+                                                @order.Status
+                                            </span>
+                                            <br>
+                                            <a asp-action="OrderDetails" asp-route-id="@order.Id" class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-eye me-1"></i>View Details
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="card shadow-sm">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-shopping-bag fa-5x text-muted mb-4"></i>
+                        <h4>No Orders Yet</h4>
+                        <p class="text-muted mb-4">You haven't placed any orders yet. Start shopping now!</p>
+                        <a asp-controller="Home" asp-action="Index" class="btn btn-primary btn-lg">
+                            <i class="fas fa-shopping-cart me-2"></i>Start Shopping
+                        </a>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@functions {
+    string GetStatusColor(string status)
+    {
+        return status switch
+        {
+            "Pending" => "warning",
+            "Processing" => "info",
+            "Shipped" => "primary",
+            "Delivered" => "success",
+            "Cancelled" => "danger",
+            _ => "secondary"
+        };
+    }
+}
